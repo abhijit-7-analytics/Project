@@ -46,7 +46,7 @@ pip install -r requirements.txt
 ```bash
 export DB_NAME=sales_db
 export DB_USER=postgres
-export DB_PASSWORD=root
+export DB_PASSWORD=Abhi@1234
 export DB_HOST=localhost
 ```
 

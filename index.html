@@ -120,8 +120,9 @@
             <input type="number" id="sale-qty" class="form-control" min="1" value="1" />
           </div>
           <div class="form-group">
-            <label class="form-label">Amount ($)</label>
-            <input type="number" id="sale-amount" class="form-control" step="0.01" min="0" placeholder="0.00" />
+            <label class="form-label">Total Amount ($) — Auto</label>
+            <input type="number" id="sale-amount" class="form-control auto-calc" step="0.01" min="0"
+              placeholder="Auto calculated" readonly />
           </div>
         </div>
         <div class="form-actions">
@@ -144,7 +145,8 @@
                 <th>Category</th>
                 <th>Date</th>
                 <th>Qty</th>
-                <th>Amount</th>
+                <th>Unit Price</th>
+                <th>Total</th>
                 <th></th>
               </tr>
             </thead>
@@ -202,7 +204,8 @@
         <div class="form-actions">
           <input type="hidden" id="cust-edit-id" value="" />
           <button class="btn btn-primary" id="cust-submit-btn" onclick="submitCustomer()">+ Add Customer</button>
-          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()" style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()"
+            style="display:none;">Cancel</button>
         </div>
       </div>
 
@@ -252,11 +255,16 @@
               <option value="Other">Other</option>
             </select>
           </div>
+          <div class="form-group">
+            <label class="form-label">Unit Price ($)</label>
+            <input type="number" id="prod-price" class="form-control" step="0.01" min="0" placeholder="0.00" />
+          </div>
         </div>
         <div class="form-actions">
           <input type="hidden" id="prod-edit-id" value="" />
           <button class="btn btn-primary" id="prod-submit-btn" onclick="submitProduct()">+ Add Product</button>
-          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()" style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()"
+            style="display:none;">Cancel</button>
         </div>
       </div>
 
@@ -272,6 +280,7 @@
                 <th>ID</th>
                 <th>Product Name</th>
                 <th>Category</th>
+                <th>Unit Price</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -286,7 +295,7 @@
   <!-- Toast -->
   <div id="toast"></div>
 
-  <!-- JS loaded at bottom -->
+  <!-- JS -->
   <script src="script.js"></script>
 </body>
 

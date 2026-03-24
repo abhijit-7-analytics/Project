@@ -38,9 +38,11 @@ def dict_cursor(conn):
 def not_found(e):
     return jsonify({"error": "Route not found"}), 404
 
+
 @app.errorhandler(405)
 def method_not_allowed(e):
     return jsonify({"error": "Method not allowed"}), 405
+
 
 @app.errorhandler(500)
 def internal(e):
@@ -53,9 +55,11 @@ def internal(e):
 def index():
     return send_from_directory(".", "index.html")
 
+
 @app.route("/styles.css")
 def serve_css():
     return send_from_directory(".", "styles.css")
+
 
 @app.route("/script.js")
 def serve_js():
@@ -144,7 +148,9 @@ def kpis():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Customers ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  CUSTOMERS
+# ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/customers", methods=["GET"])
 def get_customers():
@@ -242,7 +248,9 @@ def delete_customer(customer_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ── Products ───────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  PRODUCTS  (with unit_price)
+# ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/products", methods=["GET"])
 def get_products():
@@ -252,7 +260,16 @@ def get_products():
             cur.execute("SELECT * FROM product_dim ORDER BY product_id;")
             rows = cur.fetchall()
         conn.close()
-        return jsonify([dict(r) for r in rows])
+        # Convert Decimal to float for JSON
+        result = []
+        for r in rows:
+            d = dict(r)
+            if d.get("unit_price") is not None:
+                d["unit_price"] = float(d["unit_price"])
+            else:
+                d["unit_price"] = 0.0
+            result.append(d)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -266,13 +283,16 @@ def add_product():
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                "INSERT INTO product_dim (product_name, category) VALUES (%s, %s) RETURNING *;",
-                (data["product_name"], data.get("category")),
+                """INSERT INTO product_dim (product_name, category, unit_price)
+                   VALUES (%s, %s, %s) RETURNING *;""",
+                (data["product_name"], data.get("category"), data.get("unit_price", 0)),
             )
             row = cur.fetchone()
         conn.commit()
         conn.close()
-        return jsonify(dict(row)), 201
+        d = dict(row)
+        d["unit_price"] = float(d.get("unit_price") or 0)
+        return jsonify(d), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -288,17 +308,20 @@ def update_product(product_id):
             cur.execute(
                 """UPDATE product_dim
                    SET product_name = %s,
-                       category     = %s
+                       category     = %s,
+                       unit_price   = %s
                    WHERE product_id = %s
                    RETURNING *;""",
-                (data["product_name"], data.get("category"), product_id),
+                (data["product_name"], data.get("category"), data.get("unit_price", 0), product_id),
             )
             row = cur.fetchone()
         conn.commit()
         conn.close()
         if row is None:
             return jsonify({"error": "Product not found"}), 404
-        return jsonify(dict(row))
+        d = dict(row)
+        d["unit_price"] = float(d.get("unit_price") or 0)
+        return jsonify(d)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -316,7 +339,9 @@ def delete_product(product_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ── Sales ──────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  SALES  (now includes unit_price from product)
+# ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/sales", methods=["GET"])
 def get_sales():
@@ -328,6 +353,7 @@ def get_sales():
                        c.first_name || ' ' || c.last_name AS customer_name,
                        pd.product_name,
                        pd.category,
+                       COALESCE(pd.unit_price, 0)::float AS unit_price,
                        sf.sale_date::text,
                        sf.quantity,
                        sf.sale_amount::float
@@ -381,7 +407,9 @@ def delete_sale(sale_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ── Schema setup ───────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  SCHEMA SETUP  (with unit_price column)
+# ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/setup", methods=["POST"])
 def setup():
@@ -403,7 +431,8 @@ def setup():
                 CREATE TABLE IF NOT EXISTS product_dim (
                     product_id   SERIAL PRIMARY KEY,
                     product_name VARCHAR(100) NOT NULL,
-                    category     VARCHAR(50)
+                    category     VARCHAR(50),
+                    unit_price   NUMERIC(10, 2) DEFAULT 0
                 );
 
                 CREATE TABLE IF NOT EXISTS sales_fact (
@@ -444,12 +473,19 @@ def setup():
                     ) THEN
                         ALTER TABLE customer_dim ADD COLUMN member_type VARCHAR(20) DEFAULT 'Regular';
                     END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='product_dim' AND column_name='unit_price'
+                    ) THEN
+                        ALTER TABLE product_dim ADD COLUMN unit_price NUMERIC(10, 2) DEFAULT 0;
+                    END IF;
                 END
                 $$;
             """)
         conn.commit()
         conn.close()
-        return jsonify({"status": "schema ready"})
+        return jsonify({"status": "schema ready with unit_price"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

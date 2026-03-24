@@ -80,7 +80,6 @@ const ACCENT = ['#ec4899', '#3b82f6', '#a855f7', '#f43f5e', '#3ddc84'];
 async function loadCharts() {
   const catData = await api('/analytics/revenue-by-category');
 
-  // Destroy existing charts
   if (chartCategory) chartCategory.destroy();
   if (chartDoughnut) chartDoughnut.destroy();
   if (chartPie) chartPie.destroy();
@@ -88,7 +87,7 @@ async function loadCharts() {
   Chart.defaults.color = '#94a3b8';
   Chart.defaults.font = { family: "'JetBrains Mono', monospace", size: 11 };
 
-  // 1. Bar Chart — Revenue by Category
+  // 1. Bar Chart
   chartCategory = new Chart(document.getElementById('chartCategory'), {
     type: 'bar',
     data: {
@@ -112,7 +111,7 @@ async function loadCharts() {
     }
   });
 
-  // 2. Doughnut Chart — Sales Distribution
+  // 2. Doughnut Chart
   chartDoughnut = new Chart(document.getElementById('chartDoughnut'), {
     type: 'doughnut',
     data: {
@@ -133,7 +132,7 @@ async function loadCharts() {
     }
   });
 
-  // 3. Pie Chart — Customer Segments
+  // 3. Pie Chart — Member type split
   let goldCount = 0, regularCount = 0;
   customers.forEach(c => {
     if (c.member_type === 'Gold') goldCount++;
@@ -163,6 +162,19 @@ async function loadCharts() {
 
 
 // ══════════════════════════════════════════════
+//  AUTO-CALCULATE SALE AMOUNT
+// ══════════════════════════════════════════════
+function calcSaleAmount() {
+  const sel = document.getElementById('sale-product');
+  const selectedOption = sel.options[sel.selectedIndex];
+  const price = parseFloat(selectedOption?.getAttribute('data-price') || 0);
+  const qty = parseInt(document.getElementById('sale-qty').value) || 0;
+  const total = price * qty;
+  document.getElementById('sale-amount').value = total > 0 ? total.toFixed(2) : '';
+}
+
+
+// ══════════════════════════════════════════════
 //  SALES
 // ══════════════════════════════════════════════
 async function loadSales() {
@@ -171,7 +183,7 @@ async function loadSales() {
   document.getElementById('sales-count').textContent = sales.length + ' records';
 
   if (!sales.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-icon">◈</div>No sales yet</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">◈</div>No sales yet</div></td></tr>`;
     return;
   }
 
@@ -183,7 +195,8 @@ async function loadSales() {
       <td>${badge(s.category)}</td>
       <td class="td-mono">${s.sale_date}</td>
       <td class="td-mono">${s.quantity}</td>
-      <td class="td-mono" style="color:var(--accent)">${fmt(s.sale_amount)}</td>
+      <td class="td-mono">${fmt(s.unit_price || 0)}</td>
+      <td class="td-mono" style="color:var(--accent);font-weight:700">${fmt(s.sale_amount)}</td>
       <td><button class="btn btn-danger" onclick="deleteSale(${s.sale_id})">✕</button></td>
     </tr>
   `).join('');
@@ -196,8 +209,11 @@ async function addSale() {
   const qty = document.getElementById('sale-qty').value;
   const amount = document.getElementById('sale-amount').value;
 
-  if (!cid || !pid || !date || !qty || !amount) {
+  if (!cid || !pid || !date || !qty) {
     toast('Please fill all fields', 'error'); return;
+  }
+  if (!amount || parseFloat(amount) <= 0) {
+    toast('Select a product with a valid price', 'error'); return;
   }
 
   try {
@@ -231,7 +247,6 @@ async function loadCustomers() {
   const tbody = document.getElementById('customers-tbody');
   document.getElementById('customers-count').textContent = customers.length + ' records';
 
-  // Populate sales dropdown
   const sel = document.getElementById('sale-customer');
   sel.innerHTML = customers.map(c =>
     `<option value="${c.customer_id}">${c.first_name} ${c.last_name}</option>`
@@ -355,13 +370,18 @@ async function loadProducts() {
   const tbody = document.getElementById('products-tbody');
   document.getElementById('products-count').textContent = products.length + ' records';
 
+  // Populate sales dropdown with price data
   const sel = document.getElementById('sale-product');
   sel.innerHTML = products.map(p =>
-    `<option value="${p.product_id}">${p.product_name}</option>`
+    `<option value="${p.product_id}" data-price="${p.unit_price || 0}">${p.product_name} — ${fmt(p.unit_price || 0)}</option>`
   ).join('');
 
+  // Attach auto-calculate listeners
+  sel.removeEventListener('change', calcSaleAmount);
+  sel.addEventListener('change', calcSaleAmount);
+
   if (!products.length) {
-    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-icon">◇</div>No products yet</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-icon">◇</div>No products yet</div></td></tr>`;
     return;
   }
 
@@ -370,6 +390,7 @@ async function loadProducts() {
       <td class="td-mono" style="color:var(--muted)">${p.product_id}</td>
       <td>${p.product_name}</td>
       <td>${badge(p.category)}</td>
+      <td class="td-mono" style="color:var(--accent)">${fmt(p.unit_price || 0)}</td>
       <td>
         <div class="action-btns">
           <button class="btn btn-edit" onclick="editProduct(${p.product_id})">✎ Edit</button>
@@ -378,6 +399,9 @@ async function loadProducts() {
       </td>
     </tr>
   `).join('');
+
+  // Trigger initial calculation
+  calcSaleAmount();
 }
 
 async function submitProduct() {
@@ -385,10 +409,12 @@ async function submitProduct() {
 
   const name = document.getElementById('prod-name').value.trim();
   const cat = document.getElementById('prod-category').value;
+  const price = document.getElementById('prod-price').value;
 
   if (!name) { toast('Product name required', 'error'); return; }
+  if (!price || parseFloat(price) < 0) { toast('Valid price required', 'error'); return; }
 
-  const payload = { product_name: name, category: cat };
+  const payload = { product_name: name, category: cat, unit_price: parseFloat(price) };
 
   try {
     if (editId) {
@@ -409,6 +435,7 @@ function editProduct(id) {
 
   document.getElementById('prod-name').value = p.product_name || '';
   document.getElementById('prod-category').value = p.category || 'Other';
+  document.getElementById('prod-price').value = p.unit_price || '';
   document.getElementById('prod-edit-id').value = id;
 
   document.getElementById('product-form-title').textContent = '✎ Editing Product #' + id;
@@ -423,6 +450,7 @@ function editProduct(id) {
 function cancelProductEdit() {
   document.getElementById('prod-edit-id').value = '';
   document.getElementById('prod-name').value = '';
+  document.getElementById('prod-price').value = '';
   document.getElementById('prod-category').value = 'Electronics';
 
   document.getElementById('product-form-title').textContent = 'Add Product';
@@ -460,5 +488,11 @@ async function refreshAll() {
   }
 }
 
+// Set today as default date
 document.getElementById('sale-date').valueAsDate = new Date();
+
+// Listen for quantity changes to auto-calculate
+document.getElementById('sale-qty').addEventListener('input', calcSaleAmount);
+
+// Start
 refreshAll();
