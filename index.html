@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SalesDB — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+  <!-- ── Sidebar ──────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">Sales<span>DB</span></div>
+      <div class="logo-sub">Analytics</div>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" data-section="dashboard">
+        <span class="nav-icon">▦</span><span>Dashboard</span>
+      </div>
+      <div class="nav-item" data-section="sales">
+        <span class="nav-icon">◈</span><span>Sales</span>
+      </div>
+      <div class="nav-label">Management</div>
+      <div class="nav-item" data-section="customers">
+        <span class="nav-icon">◉</span><span>Customers</span>
+      </div>
+      <div class="nav-item" data-section="products">
+        <span class="nav-icon">◇</span><span>Products</span>
+      </div>
+    </nav>
+
+    <div class="status-bar">
+      <span class="status-dot"></span><span>API Connected</span>
+    </div>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="page-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Refresh Data</button>
+      </div>
+    </div>
+
+    <!-- ══════════ DASHBOARD ══════════ -->
+    <section class="section active" id="section-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-value" id="kpi-revenue">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Sales</div>
+          <div class="kpi-value" id="kpi-sales">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Order</div>
+          <div class="kpi-value" id="kpi-avg">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Customers</div>
+          <div class="kpi-value" id="kpi-customers">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Products</div>
+          <div class="kpi-value" id="kpi-products">—</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Revenue by Category</div>
+          <div class="chart-wrap"><canvas id="chartCategory"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Sales Distribution</div>
+          <div class="chart-wrap"><canvas id="chartDoughnut"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Customer Segments</div>
+          <div class="chart-wrap"><canvas id="chartPie"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ SALES ══════════ -->
+    <section class="section" id="section-sales">
+      <div class="panel" style="margin-bottom:24px">
+        <div class="panel-header">
+          <div class="panel-title">Add New Sale</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Customer</label>
+            <select id="sale-customer" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Product</label>
+            <select id="sale-product" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" id="sale-date" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Quantity</label>
+            <input type="number" id="sale-qty" class="form-control" min="1" value="1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount ($)</label>
+            <input type="number" id="sale-amount" class="form-control" step="0.01" min="0" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="addSale()">+ Add Sale</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">All Sales</div>
+          <span id="sales-count" style="color:var(--muted);font-size:11px;"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Date</th>
+                <th>Qty</th>
+                <th>Amount</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sales-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ CUSTOMERS ══════════ -->
+    <section class="section" id="section-customers">
+      <div class="panel" style="margin-bottom:24px" id="customer-form-panel">
+        <div class="panel-header">
+          <div class="panel-title" id="customer-form-title">Add Customer</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input type="text" id="cust-first" class="form-control" placeholder="Alice" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input type="text" id="cust-last" class="form-control" placeholder="Smith" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <input type="text" id="cust-city" class="form-control" placeholder="New York" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mobile No</label>
+            <input type="text" id="cust-mobile" class="form-control" placeholder="+1 555-123-4567" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" id="cust-email" class="form-control" placeholder="alice@email.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Region</label>
+            <select id="cust-region" class="form-control">
+              <option value="">Select Region</option>
+              <option value="East">East</option>
+              <option value="West">West</option>
+              <option value="North">North</option>
+              <option value="South">South</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Member Type</label>
+            <select id="cust-member" class="form-control">
+              <option value="Regular">Regular</option>
+              <option value="Gold">Gold</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <input type="hidden" id="cust-edit-id" value="" />
+          <button class="btn btn-primary" id="cust-submit-btn" onclick="submitCustomer()">+ Add Customer</button>
+          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()" style="display:none;">Cancel</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">All Customers</div>
+          <span id="customers-count" style="color:var(--muted);font-size:11px;"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>City</th>
+                <th>Mobile</th>
+                <th>Email</th>
+                <th>Region</th>
+                <th>Member</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="customers-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════ PRODUCTS ══════════ -->
+    <section class="section" id="section-products">
+      <div class="panel" style="margin-bottom:24px" id="product-form-panel">
+        <div class="panel-header">
+          <div class="panel-title" id="product-form-title">Add Product</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Product Name</label>
+            <input type="text" id="prod-name" class="form-control" placeholder="Laptop Pro" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="prod-category" class="form-control">
+              <option value="Electronics">Electronics</option>
+              <option value="Home Goods">Home Goods</option>
+              <option value="Apparel">Apparel</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <input type="hidden" id="prod-edit-id" value="" />
+          <button class="btn btn-primary" id="prod-submit-btn" onclick="submitProduct()">+ Add Product</button>
+          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()" style="display:none;">Cancel</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">All Products</div>
+          <span id="products-count" style="color:var(--muted);font-size:11px;"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- JS loaded at bottom -->
+  <script src="script.js"></script>
+</body>
+
+</html>
