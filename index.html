@@ -27,15 +27,15 @@
       <div class="nav-item active" data-section="dashboard">
         <span class="nav-icon">▦</span><span>Dashboard</span>
       </div>
-      <div class="nav-item" data-section="sales">
-        <span class="nav-icon">◈</span><span>Sales</span>
+      <div class="nav-item" data-section="sales" data-protected="true">
+        <span class="nav-icon">◈</span><span>Sales</span><span class="lock-icon" id="lock-sales">🔒</span>
       </div>
       <div class="nav-label">Management</div>
-      <div class="nav-item" data-section="customers">
-        <span class="nav-icon">◉</span><span>Customers</span>
+      <div class="nav-item" data-section="customers" data-protected="true">
+        <span class="nav-icon">◉</span><span>Customers</span><span class="lock-icon" id="lock-customers">🔒</span>
       </div>
-      <div class="nav-item" data-section="products">
-        <span class="nav-icon">◇</span><span>Products</span>
+      <div class="nav-item" data-section="products" data-protected="true">
+        <span class="nav-icon">◇</span><span>Products</span><span class="lock-icon" id="lock-products">🔒</span>
       </div>
     </nav>
 
@@ -51,11 +51,14 @@
     <div class="topbar">
       <div class="page-title" id="pageTitle">Dashboard</div>
       <div class="topbar-actions">
+        <span class="admin-badge" id="admin-badge" style="display:none;">✓ Admin</span>
         <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Refresh Data</button>
+        <button class="btn btn-login btn-sm" id="btn-login" onclick="showLogin()">🔒 Login</button>
+        <button class="btn btn-logout btn-sm" id="btn-logout" onclick="logout()" style="display:none;">⏻ Logout</button>
       </div>
     </div>
 
-    <!-- ══════════ DASHBOARD ══════════ -->
+    <!-- ══════════ DASHBOARD (PUBLIC) ══════════ -->
     <section class="section active" id="section-dashboard">
       <div class="kpi-grid">
         <div class="kpi-card">
@@ -96,7 +99,7 @@
       </div>
     </section>
 
-    <!-- ══════════ SALES ══════════ -->
+    <!-- ══════════ SALES (PROTECTED) ══════════ -->
     <section class="section" id="section-sales">
       <div class="panel" style="margin-bottom:24px">
         <div class="panel-header">
@@ -139,15 +142,8 @@
           <table>
             <thead>
               <tr>
-                <th>#</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Date</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-                <th></th>
+                <th>#</th><th>Customer</th><th>Product</th><th>Category</th>
+                <th>Date</th><th>Qty</th><th>Unit Price</th><th>Total</th><th></th>
               </tr>
             </thead>
             <tbody id="sales-tbody"></tbody>
@@ -156,7 +152,7 @@
       </div>
     </section>
 
-    <!-- ══════════ CUSTOMERS ══════════ -->
+    <!-- ══════════ CUSTOMERS (PROTECTED) ══════════ -->
     <section class="section" id="section-customers">
       <div class="panel" style="margin-bottom:24px" id="customer-form-panel">
         <div class="panel-header">
@@ -204,8 +200,7 @@
         <div class="form-actions">
           <input type="hidden" id="cust-edit-id" value="" />
           <button class="btn btn-primary" id="cust-submit-btn" onclick="submitCustomer()">+ Add Customer</button>
-          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()"
-            style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()" style="display:none;">Cancel</button>
         </div>
       </div>
 
@@ -218,15 +213,8 @@
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>City</th>
-                <th>Mobile</th>
-                <th>Email</th>
-                <th>Region</th>
-                <th>Member</th>
-                <th>Actions</th>
+                <th>ID</th><th>First Name</th><th>Last Name</th><th>City</th>
+                <th>Mobile</th><th>Email</th><th>Region</th><th>Member</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="customers-tbody"></tbody>
@@ -235,7 +223,7 @@
       </div>
     </section>
 
-    <!-- ══════════ PRODUCTS ══════════ -->
+    <!-- ══════════ PRODUCTS (PROTECTED) ══════════ -->
     <section class="section" id="section-products">
       <div class="panel" style="margin-bottom:24px" id="product-form-panel">
         <div class="panel-header">
@@ -263,8 +251,7 @@
         <div class="form-actions">
           <input type="hidden" id="prod-edit-id" value="" />
           <button class="btn btn-primary" id="prod-submit-btn" onclick="submitProduct()">+ Add Product</button>
-          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()"
-            style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()" style="display:none;">Cancel</button>
         </div>
       </div>
 
@@ -277,11 +264,7 @@
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Product Name</th>
-                <th>Category</th>
-                <th>Unit Price</th>
-                <th>Actions</th>
+                <th>ID</th><th>Product Name</th><th>Category</th><th>Unit Price</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="products-tbody"></tbody>
@@ -291,6 +274,22 @@
     </section>
 
   </main>
+
+  <!-- ══════════ LOGIN OVERLAY ══════════ -->
+  <div class="login-overlay" id="login-overlay">
+    <div class="login-card">
+      <button class="login-close" onclick="hideLogin()">✕</button>
+      <div class="login-logo">Sales<span>DB</span></div>
+      <div class="login-subtitle">Admin Authentication</div>
+      <div class="login-form">
+        <input type="text" class="login-input" id="login-user" placeholder="Username" autocomplete="username" />
+        <input type="password" class="login-input" id="login-pass" placeholder="Password" autocomplete="current-password" />
+        <div class="login-error" id="login-error"></div>
+        <button class="login-btn" id="login-submit-btn" onclick="login()">🔐  Login</button>
+        <div class="login-session-info">Session expires after 30 minutes of inactivity</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast -->
   <div id="toast"></div>

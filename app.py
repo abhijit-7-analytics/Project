@@ -1,13 +1,25 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
+from datetime import timedelta
 import psycopg2
 import psycopg2.extras
 import os
+import functools
 
 app = Flask(__name__, static_folder=".")
-CORS(app)
+CORS(app, supports_credentials=True)
 
-# ── Configuration ──────────────────────────────────────────────────────────
+# ── Secret Key for Sessions ────────────────────────────────────────────────
+app.secret_key = os.getenv("SECRET_KEY", "salesdb-super-secret-key-change-me-2024")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# ── Admin Credentials ──────────────────────────────────────────────────────
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
+
+# ── Database Configuration ─────────────────────────────────────────────────
 DB_CONFIG = {
     "dbname":   os.getenv("DB_NAME",     "sales_db"),
     "user":     os.getenv("DB_USER",     "postgres"),
@@ -22,14 +34,25 @@ def get_conn():
     try:
         return psycopg2.connect(**DB_CONFIG)
     except psycopg2.OperationalError as e:
-        raise RuntimeError(
-            f"Cannot connect to PostgreSQL: {e}. "
-            "Check DB_HOST / DB_USER / DB_PASSWORD / DB_NAME."
-        ) from e
+        raise RuntimeError(f"Cannot connect to PostgreSQL: {e}") from e
 
 
 def dict_cursor(conn):
     return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  AUTH DECORATOR
+# ══════════════════════════════════════════════════════════════════════════
+
+def login_required(f):
+    """Decorator to protect API endpoints — returns 401 if not logged in."""
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin"):
+            return jsonify({"error": "Authentication required", "code": "AUTH_REQUIRED"}), 401
+        return f(*args, **kwargs)
+    return wrapper
 
 
 # ── Error handlers ─────────────────────────────────────────────────────────
@@ -38,11 +61,9 @@ def dict_cursor(conn):
 def not_found(e):
     return jsonify({"error": "Route not found"}), 404
 
-
 @app.errorhandler(405)
 def method_not_allowed(e):
     return jsonify({"error": "Method not allowed"}), 405
-
 
 @app.errorhandler(500)
 def internal(e):
@@ -55,18 +76,55 @@ def internal(e):
 def index():
     return send_from_directory(".", "index.html")
 
-
 @app.route("/styles.css")
 def serve_css():
     return send_from_directory(".", "styles.css")
-
 
 @app.route("/script.js")
 def serve_js():
     return send_from_directory(".", "script.js")
 
 
-# ── Health ─────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  AUTH ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route("/api/auth/check", methods=["GET"])
+def auth_check():
+    """Check if current session is authenticated."""
+    return jsonify({
+        "authenticated": bool(session.get("admin")),
+        "username": session.get("username", None),
+    })
+
+
+@app.route("/api/login", methods=["POST"])
+def do_login():
+    """Authenticate admin user and create session."""
+    data = request.get_json(force=True)
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+
+    if not username or not password:
+        return jsonify({"success": False, "error": "Username and password required"}), 400
+
+    if username == ADMIN_USER and password == ADMIN_PASS:
+        session.permanent = True
+        session["admin"] = True
+        session["username"] = username
+        return jsonify({"success": True, "message": "Login successful"})
+    else:
+        return jsonify({"success": False, "error": "Invalid username or password"}), 401
+
+
+@app.route("/api/logout", methods=["POST"])
+def do_logout():
+    """Clear session and log out."""
+    session.clear()
+    return jsonify({"success": True, "message": "Logged out"})
+
+
+# ── Health (PUBLIC) ────────────────────────────────────────────────────────
 
 @app.route("/api/health")
 def health():
@@ -86,7 +144,9 @@ def health():
     }), 200 if db_ok else 503
 
 
-# ── Analytics ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  ANALYTICS (PUBLIC — needed for dashboard)
+# ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/analytics/revenue-by-category")
 def revenue_by_category():
@@ -94,12 +154,9 @@ def revenue_by_category():
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute("""
-                SELECT pd.category,
-                       SUM(sf.sale_amount)::float AS total_revenue
-                FROM   sales_fact sf
-                JOIN   product_dim pd ON sf.product_id = pd.product_id
-                GROUP  BY pd.category
-                ORDER  BY total_revenue DESC;
+                SELECT pd.category, SUM(sf.sale_amount)::float AS total_revenue
+                FROM sales_fact sf JOIN product_dim pd ON sf.product_id = pd.product_id
+                GROUP BY pd.category ORDER BY total_revenue DESC;
             """)
             rows = cur.fetchall()
         conn.close()
@@ -114,11 +171,8 @@ def revenue_over_time():
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute("""
-                SELECT sale_date::text         AS sale_date,
-                       SUM(sale_amount)::float AS daily_revenue
-                FROM   sales_fact
-                GROUP  BY sale_date
-                ORDER  BY sale_date;
+                SELECT sale_date::text AS sale_date, SUM(sale_amount)::float AS daily_revenue
+                FROM sales_fact GROUP BY sale_date ORDER BY sale_date;
             """)
             rows = cur.fetchall()
         conn.close()
@@ -133,12 +187,11 @@ def kpis():
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute("""
-                SELECT
-                    COUNT(*)::int                            AS total_sales,
-                    COALESCE(SUM(sale_amount),  0)::float   AS total_revenue,
-                    COALESCE(AVG(sale_amount),  0)::float   AS avg_order_value,
-                    (SELECT COUNT(*) FROM customer_dim)::int AS total_customers,
-                    (SELECT COUNT(*) FROM product_dim)::int  AS total_products
+                SELECT COUNT(*)::int AS total_sales,
+                       COALESCE(SUM(sale_amount),0)::float AS total_revenue,
+                       COALESCE(AVG(sale_amount),0)::float AS avg_order_value,
+                       (SELECT COUNT(*) FROM customer_dim)::int AS total_customers,
+                       (SELECT COUNT(*) FROM product_dim)::int AS total_products
                 FROM sales_fact;
             """)
             row = cur.fetchone()
@@ -149,7 +202,7 @@ def kpis():
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  CUSTOMERS
+#  CUSTOMERS — GET is public (for dashboard), mutations need login
 # ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/customers", methods=["GET"])
@@ -166,90 +219,68 @@ def get_customers():
 
 
 @app.route("/api/customers", methods=["POST"])
+@login_required
 def add_customer():
     try:
         data = request.get_json(force=True)
         if not data.get("first_name") or not data.get("last_name"):
-            return jsonify({"error": "first_name and last_name are required"}), 400
+            return jsonify({"error": "first_name and last_name required"}), 400
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                """INSERT INTO customer_dim
-                       (first_name, last_name, city, mobile_no, email, region, member_type)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *;""",
-                (
-                    data["first_name"],
-                    data["last_name"],
-                    data.get("city"),
-                    data.get("mobile_no"),
-                    data.get("email"),
-                    data.get("region"),
-                    data.get("member_type", "Regular"),
-                ),
+                """INSERT INTO customer_dim (first_name,last_name,city,mobile_no,email,region,member_type)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING *;""",
+                (data["first_name"], data["last_name"], data.get("city"),
+                 data.get("mobile_no"), data.get("email"), data.get("region"),
+                 data.get("member_type", "Regular")),
             )
             row = cur.fetchone()
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         return jsonify(dict(row)), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/customers/<int:customer_id>", methods=["PUT"])
-def update_customer(customer_id):
+@app.route("/api/customers/<int:cid>", methods=["PUT"])
+@login_required
+def update_customer(cid):
     try:
         data = request.get_json(force=True)
         if not data.get("first_name") or not data.get("last_name"):
-            return jsonify({"error": "first_name and last_name are required"}), 400
+            return jsonify({"error": "first_name and last_name required"}), 400
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                """UPDATE customer_dim
-                   SET first_name  = %s,
-                       last_name   = %s,
-                       city        = %s,
-                       mobile_no   = %s,
-                       email       = %s,
-                       region      = %s,
-                       member_type = %s
-                   WHERE customer_id = %s
-                   RETURNING *;""",
-                (
-                    data["first_name"],
-                    data["last_name"],
-                    data.get("city"),
-                    data.get("mobile_no"),
-                    data.get("email"),
-                    data.get("region"),
-                    data.get("member_type", "Regular"),
-                    customer_id,
-                ),
+                """UPDATE customer_dim SET first_name=%s,last_name=%s,city=%s,
+                   mobile_no=%s,email=%s,region=%s,member_type=%s
+                   WHERE customer_id=%s RETURNING *;""",
+                (data["first_name"], data["last_name"], data.get("city"),
+                 data.get("mobile_no"), data.get("email"), data.get("region"),
+                 data.get("member_type", "Regular"), cid),
             )
             row = cur.fetchone()
-        conn.commit()
-        conn.close()
-        if row is None:
-            return jsonify({"error": "Customer not found"}), 404
+        conn.commit(); conn.close()
+        if not row: return jsonify({"error": "Not found"}), 404
         return jsonify(dict(row))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/customers/<int:customer_id>", methods=["DELETE"])
-def delete_customer(customer_id):
+@app.route("/api/customers/<int:cid>", methods=["DELETE"])
+@login_required
+def delete_customer(cid):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM customer_dim WHERE customer_id = %s;", (customer_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"deleted": customer_id})
+            cur.execute("DELETE FROM customer_dim WHERE customer_id=%s;", (cid,))
+        conn.commit(); conn.close()
+        return jsonify({"deleted": cid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  PRODUCTS  (with unit_price)
+#  PRODUCTS — GET is public, mutations need login
 # ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/products", methods=["GET"])
@@ -260,14 +291,10 @@ def get_products():
             cur.execute("SELECT * FROM product_dim ORDER BY product_id;")
             rows = cur.fetchall()
         conn.close()
-        # Convert Decimal to float for JSON
         result = []
         for r in rows:
             d = dict(r)
-            if d.get("unit_price") is not None:
-                d["unit_price"] = float(d["unit_price"])
-            else:
-                d["unit_price"] = 0.0
+            d["unit_price"] = float(d.get("unit_price") or 0)
             result.append(d)
         return jsonify(result)
     except Exception as e:
@@ -275,72 +302,65 @@ def get_products():
 
 
 @app.route("/api/products", methods=["POST"])
+@login_required
 def add_product():
     try:
         data = request.get_json(force=True)
         if not data.get("product_name"):
-            return jsonify({"error": "product_name is required"}), 400
+            return jsonify({"error": "product_name required"}), 400
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                """INSERT INTO product_dim (product_name, category, unit_price)
-                   VALUES (%s, %s, %s) RETURNING *;""",
+                """INSERT INTO product_dim (product_name,category,unit_price)
+                   VALUES (%s,%s,%s) RETURNING *;""",
                 (data["product_name"], data.get("category"), data.get("unit_price", 0)),
             )
             row = cur.fetchone()
-        conn.commit()
-        conn.close()
-        d = dict(row)
-        d["unit_price"] = float(d.get("unit_price") or 0)
+        conn.commit(); conn.close()
+        d = dict(row); d["unit_price"] = float(d.get("unit_price") or 0)
         return jsonify(d), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/products/<int:product_id>", methods=["PUT"])
-def update_product(product_id):
+@app.route("/api/products/<int:pid>", methods=["PUT"])
+@login_required
+def update_product(pid):
     try:
         data = request.get_json(force=True)
         if not data.get("product_name"):
-            return jsonify({"error": "product_name is required"}), 400
+            return jsonify({"error": "product_name required"}), 400
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                """UPDATE product_dim
-                   SET product_name = %s,
-                       category     = %s,
-                       unit_price   = %s
-                   WHERE product_id = %s
-                   RETURNING *;""",
-                (data["product_name"], data.get("category"), data.get("unit_price", 0), product_id),
+                """UPDATE product_dim SET product_name=%s,category=%s,unit_price=%s
+                   WHERE product_id=%s RETURNING *;""",
+                (data["product_name"], data.get("category"), data.get("unit_price", 0), pid),
             )
             row = cur.fetchone()
-        conn.commit()
-        conn.close()
-        if row is None:
-            return jsonify({"error": "Product not found"}), 404
-        d = dict(row)
-        d["unit_price"] = float(d.get("unit_price") or 0)
+        conn.commit(); conn.close()
+        if not row: return jsonify({"error": "Not found"}), 404
+        d = dict(row); d["unit_price"] = float(d.get("unit_price") or 0)
         return jsonify(d)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/products/<int:product_id>", methods=["DELETE"])
-def delete_product(product_id):
+@app.route("/api/products/<int:pid>", methods=["DELETE"])
+@login_required
+def delete_product(pid):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM product_dim WHERE product_id = %s;", (product_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"deleted": product_id})
+            cur.execute("DELETE FROM product_dim WHERE product_id=%s;", (pid,))
+        conn.commit(); conn.close()
+        return jsonify({"deleted": pid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  SALES  (now includes unit_price from product)
+#  SALES — GET is public, mutations need login
 # ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/sales", methods=["GET"])
@@ -351,16 +371,13 @@ def get_sales():
             cur.execute("""
                 SELECT sf.sale_id,
                        c.first_name || ' ' || c.last_name AS customer_name,
-                       pd.product_name,
-                       pd.category,
-                       COALESCE(pd.unit_price, 0)::float AS unit_price,
-                       sf.sale_date::text,
-                       sf.quantity,
-                       sf.sale_amount::float
-                FROM   sales_fact sf
-                JOIN   customer_dim c  ON sf.customer_id = c.customer_id
-                JOIN   product_dim  pd ON sf.product_id  = pd.product_id
-                ORDER  BY sf.sale_date DESC, sf.sale_id DESC;
+                       pd.product_name, pd.category,
+                       COALESCE(pd.unit_price,0)::float AS unit_price,
+                       sf.sale_date::text, sf.quantity, sf.sale_amount::float
+                FROM sales_fact sf
+                JOIN customer_dim c ON sf.customer_id = c.customer_id
+                JOIN product_dim pd ON sf.product_id = pd.product_id
+                ORDER BY sf.sale_date DESC, sf.sale_id DESC;
             """)
             rows = cur.fetchall()
         conn.close()
@@ -370,45 +387,44 @@ def get_sales():
 
 
 @app.route("/api/sales", methods=["POST"])
+@login_required
 def add_sale():
     try:
         data = request.get_json(force=True)
         required = ["customer_id", "product_id", "sale_date", "quantity", "sale_amount"]
         missing = [f for f in required if f not in data]
         if missing:
-            return jsonify({"error": f"Missing fields: {missing}"}), 400
+            return jsonify({"error": f"Missing: {missing}"}), 400
         conn = get_conn()
         with dict_cursor(conn) as cur:
             cur.execute(
-                """INSERT INTO sales_fact
-                       (customer_id, product_id, sale_date, quantity, sale_amount)
-                   VALUES (%s, %s, %s, %s, %s) RETURNING sale_id;""",
+                """INSERT INTO sales_fact (customer_id,product_id,sale_date,quantity,sale_amount)
+                   VALUES (%s,%s,%s,%s,%s) RETURNING sale_id;""",
                 (data["customer_id"], data["product_id"],
                  data["sale_date"], data["quantity"], data["sale_amount"]),
             )
             row = cur.fetchone()
-        conn.commit()
-        conn.close()
+        conn.commit(); conn.close()
         return jsonify(dict(row)), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/sales/<int:sale_id>", methods=["DELETE"])
-def delete_sale(sale_id):
+@app.route("/api/sales/<int:sid>", methods=["DELETE"])
+@login_required
+def delete_sale(sid):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM sales_fact WHERE sale_id = %s;", (sale_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"deleted": sale_id})
+            cur.execute("DELETE FROM sales_fact WHERE sale_id=%s;", (sid,))
+        conn.commit(); conn.close()
+        return jsonify({"deleted": sid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════
-#  SCHEMA SETUP  (with unit_price column)
+#  SCHEMA SETUP (PUBLIC — needed for initial setup)
 # ══════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/setup", methods=["POST"])
@@ -418,74 +434,32 @@ def setup():
         with conn.cursor() as cur:
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS customer_dim (
-                    customer_id  SERIAL PRIMARY KEY,
-                    first_name   VARCHAR(50)  NOT NULL,
-                    last_name    VARCHAR(50)  NOT NULL,
-                    city         VARCHAR(50),
-                    mobile_no    VARCHAR(20),
-                    email        VARCHAR(100),
-                    region       VARCHAR(20),
-                    member_type  VARCHAR(20) DEFAULT 'Regular'
+                    customer_id SERIAL PRIMARY KEY,
+                    first_name VARCHAR(50) NOT NULL, last_name VARCHAR(50) NOT NULL,
+                    city VARCHAR(50), mobile_no VARCHAR(20), email VARCHAR(100),
+                    region VARCHAR(20), member_type VARCHAR(20) DEFAULT 'Regular'
                 );
-
                 CREATE TABLE IF NOT EXISTS product_dim (
-                    product_id   SERIAL PRIMARY KEY,
-                    product_name VARCHAR(100) NOT NULL,
-                    category     VARCHAR(50),
-                    unit_price   NUMERIC(10, 2) DEFAULT 0
+                    product_id SERIAL PRIMARY KEY, product_name VARCHAR(100) NOT NULL,
+                    category VARCHAR(50), unit_price NUMERIC(10,2) DEFAULT 0
                 );
-
                 CREATE TABLE IF NOT EXISTS sales_fact (
-                    sale_id     SERIAL PRIMARY KEY,
+                    sale_id SERIAL PRIMARY KEY,
                     customer_id INTEGER REFERENCES customer_dim(customer_id) ON DELETE CASCADE,
-                    product_id  INTEGER REFERENCES product_dim(product_id)  ON DELETE CASCADE,
-                    sale_date   DATE           NOT NULL,
-                    quantity    INTEGER        NOT NULL,
-                    sale_amount NUMERIC(10, 2) NOT NULL
+                    product_id INTEGER REFERENCES product_dim(product_id) ON DELETE CASCADE,
+                    sale_date DATE NOT NULL, quantity INTEGER NOT NULL,
+                    sale_amount NUMERIC(10,2) NOT NULL
                 );
-
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='customer_dim' AND column_name='mobile_no'
-                    ) THEN
-                        ALTER TABLE customer_dim ADD COLUMN mobile_no VARCHAR(20);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='customer_dim' AND column_name='email'
-                    ) THEN
-                        ALTER TABLE customer_dim ADD COLUMN email VARCHAR(100);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='customer_dim' AND column_name='region'
-                    ) THEN
-                        ALTER TABLE customer_dim ADD COLUMN region VARCHAR(20);
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='customer_dim' AND column_name='member_type'
-                    ) THEN
-                        ALTER TABLE customer_dim ADD COLUMN member_type VARCHAR(20) DEFAULT 'Regular';
-                    END IF;
-
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='product_dim' AND column_name='unit_price'
-                    ) THEN
-                        ALTER TABLE product_dim ADD COLUMN unit_price NUMERIC(10, 2) DEFAULT 0;
-                    END IF;
-                END
-                $$;
+                DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customer_dim' AND column_name='mobile_no') THEN ALTER TABLE customer_dim ADD COLUMN mobile_no VARCHAR(20); END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customer_dim' AND column_name='email') THEN ALTER TABLE customer_dim ADD COLUMN email VARCHAR(100); END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customer_dim' AND column_name='region') THEN ALTER TABLE customer_dim ADD COLUMN region VARCHAR(20); END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='customer_dim' AND column_name='member_type') THEN ALTER TABLE customer_dim ADD COLUMN member_type VARCHAR(20) DEFAULT 'Regular'; END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='product_dim' AND column_name='unit_price') THEN ALTER TABLE product_dim ADD COLUMN unit_price NUMERIC(10,2) DEFAULT 0; END IF;
+                END $$;
             """)
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "schema ready with unit_price"})
+        conn.commit(); conn.close()
+        return jsonify({"status": "schema ready"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -494,7 +468,8 @@ def setup():
 
 if __name__ == "__main__":
     print("\n  SalesDB API starting...")
-    print("  Dashboard  →  http://localhost:5000")
-    print("  Health     →  http://localhost:5000/api/health")
-    print("  Setup DB   →  POST http://localhost:5000/api/setup\n")
+    print(f"  Admin Login  →  {ADMIN_USER} / {ADMIN_PASS}")
+    print("  Dashboard    →  http://localhost:5000")
+    print("  Health       →  http://localhost:5000/api/health")
+    print("  Setup DB     →  POST http://localhost:5000/api/setup\n")
     app.run(debug=True, port=5000, host="0.0.0.0")
