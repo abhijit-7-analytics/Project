@@ -58,10 +58,15 @@ python app.py
 
 API runs at **http://localhost:5000**
 
-### First-time schema setup via API (alternative to running analytics script)
+### First-time schema setup via API (alternative to running analytics script) 
 
 ```bash
 curl -X POST http://localhost:5000/api/setup
+```
+###OR
+
+```bash
+Invoke-WebRequest -Uri http://localhost:5000/api/setup -Method POST
 ```
 
 ---
