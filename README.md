@@ -23,12 +23,6 @@ Make sure PostgreSQL is running and your `sales_db` database exists.
 psql -U postgres -c "CREATE DATABASE sales_db;"
 ```
 
-Then run the original `sales_analytics.py` to create tables and seed data:
-
-```bash
-python sales_analytics.py
-```
-
 Or call the setup endpoint after starting the API (see below).
 
 ---
