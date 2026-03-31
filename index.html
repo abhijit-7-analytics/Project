@@ -15,13 +15,11 @@
 
 <body>
 
-  <!-- ── Sidebar ──────────────────────────────── -->
   <aside class="sidebar">
     <div class="logo">
       <div class="logo-mark">Sales<span>DB</span></div>
       <div class="logo-sub">Analytics</div>
     </div>
-
     <nav class="nav">
       <div class="nav-label">Overview</div>
       <div class="nav-item active" data-section="dashboard">
@@ -30,6 +28,7 @@
       <div class="nav-item" data-section="sales" data-protected="true">
         <span class="nav-icon">◈</span><span>Sales</span><span class="lock-icon" id="lock-sales">🔒</span>
       </div>
+
       <div class="nav-label">Management</div>
       <div class="nav-item" data-section="customers" data-protected="true">
         <span class="nav-icon">◉</span><span>Customers</span><span class="lock-icon" id="lock-customers">🔒</span>
@@ -37,28 +36,37 @@
       <div class="nav-item" data-section="products" data-protected="true">
         <span class="nav-icon">◇</span><span>Products</span><span class="lock-icon" id="lock-products">🔒</span>
       </div>
-    </nav>
+      <div class="nav-item" data-section="stocks" data-protected="true">
+        <span class="nav-icon">▣</span><span>Stocks</span><span class="lock-icon" id="lock-stocks">🔒</span>
+      </div>
 
+      <div class="nav-label">Billing</div>
+      <div class="nav-item" data-section="invoices" data-protected="true">
+        <span class="nav-icon">▤</span><span>Invoices</span><span class="lock-icon" id="lock-invoices">🔒</span>
+      </div>
+
+      <div class="nav-label">Analytics</div>
+      <div class="nav-item" data-section="reports" data-protected="true">
+        <span class="nav-icon">▥</span><span>Reports</span><span class="lock-icon" id="lock-reports">🔒</span>
+      </div>
+    </nav>
     <div class="status-bar">
       <span class="status-dot"></span><span>API Connected</span>
     </div>
   </aside>
 
-  <!-- ── Main ─────────────────────────────────── -->
   <main class="main">
-
-    <!-- Topbar -->
     <div class="topbar">
       <div class="page-title" id="pageTitle">Dashboard</div>
       <div class="topbar-actions">
         <span class="admin-badge" id="admin-badge" style="display:none;">✓ Admin</span>
-        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Refresh Data</button>
+        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">↻ Refresh</button>
         <button class="btn btn-login btn-sm" id="btn-login" onclick="showLogin()">🔒 Login</button>
         <button class="btn btn-logout btn-sm" id="btn-logout" onclick="logout()" style="display:none;">⏻ Logout</button>
       </div>
     </div>
 
-    <!-- ══════════ DASHBOARD (PUBLIC) ══════════ -->
+    <!-- ═══ DASHBOARD ═══ -->
     <section class="section active" id="section-dashboard">
       <div class="kpi-grid">
         <div class="kpi-card">
@@ -81,8 +89,19 @@
           <div class="kpi-label">Products</div>
           <div class="kpi-value" id="kpi-products">—</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Low Stock</div>
+          <div class="kpi-value" id="kpi-lowstock">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Out of Stock</div>
+          <div class="kpi-value" id="kpi-outstock">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Pending Bills</div>
+          <div class="kpi-value" id="kpi-pending">—</div>
+        </div>
       </div>
-
       <div class="charts-row">
         <div class="chart-card">
           <div class="chart-title">Revenue by Category</div>
@@ -99,51 +118,45 @@
       </div>
     </section>
 
-    <!-- ══════════ SALES (PROTECTED) ══════════ -->
+    <!-- ═══ SALES ═══ -->
     <section class="section" id="section-sales">
-      <div class="panel" style="margin-bottom:24px">
+      <div class="panel">
         <div class="panel-header">
           <div class="panel-title">Add New Sale</div>
         </div>
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Customer</label>
-            <select id="sale-customer" class="form-control"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Product</label>
-            <select id="sale-product" class="form-control"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Date</label>
-            <input type="date" id="sale-date" class="form-control" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Quantity</label>
-            <input type="number" id="sale-qty" class="form-control" min="1" value="1" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Total Amount ($) — Auto</label>
-            <input type="number" id="sale-amount" class="form-control auto-calc" step="0.01" min="0"
-              placeholder="Auto calculated" readonly />
-          </div>
+          <div class="form-group"><label class="form-label">Customer</label><select id="sale-customer"
+              class="form-control"></select></div>
+          <div class="form-group"><label class="form-label">Product</label><select id="sale-product"
+              class="form-control"></select></div>
+          <div class="form-group"><label class="form-label">Date</label><input type="date" id="sale-date"
+              class="form-control" /></div>
+          <div class="form-group"><label class="form-label">Quantity</label><input type="number" id="sale-qty"
+              class="form-control" min="1" value="1" /></div>
+          <div class="form-group"><label class="form-label">Amount (Auto)</label><input type="number" id="sale-amount"
+              class="form-control auto-calc" readonly placeholder="Auto" /></div>
         </div>
-        <div class="form-actions">
-          <button class="btn btn-primary" onclick="addSale()">+ Add Sale</button>
-        </div>
+        <div class="form-actions"><button class="btn btn-primary" onclick="addSale()">+ Add Sale</button></div>
       </div>
-
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">All Sales</div>
-          <span id="sales-count" style="color:var(--muted);font-size:11px;"></span>
+          <div class="panel-title">All Sales</div><span id="sales-count"
+            style="color:var(--muted);font-size:11px;"></span>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Customer</th><th>Product</th><th>Category</th>
-                <th>Date</th><th>Qty</th><th>Unit Price</th><th>Total</th><th></th>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Date</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+                <th>Invoice</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="sales-tbody"></tbody>
@@ -152,69 +165,61 @@
       </div>
     </section>
 
-    <!-- ══════════ CUSTOMERS (PROTECTED) ══════════ -->
+    <!-- ═══ CUSTOMERS ═══ -->
     <section class="section" id="section-customers">
-      <div class="panel" style="margin-bottom:24px" id="customer-form-panel">
+      <div class="panel" id="customer-form-panel">
         <div class="panel-header">
           <div class="panel-title" id="customer-form-title">Add Customer</div>
         </div>
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">First Name</label>
-            <input type="text" id="cust-first" class="form-control" placeholder="Alice" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Last Name</label>
-            <input type="text" id="cust-last" class="form-control" placeholder="Smith" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">City</label>
-            <input type="text" id="cust-city" class="form-control" placeholder="New York" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Mobile No</label>
-            <input type="text" id="cust-mobile" class="form-control" placeholder="+1 555-123-4567" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input type="email" id="cust-email" class="form-control" placeholder="alice@email.com" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Region</label>
-            <select id="cust-region" class="form-control">
-              <option value="">Select Region</option>
-              <option value="East">East</option>
-              <option value="West">West</option>
-              <option value="North">North</option>
-              <option value="South">South</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Member Type</label>
-            <select id="cust-member" class="form-control">
+          <div class="form-group"><label class="form-label">First Name</label><input type="text" id="cust-first"
+              class="form-control" placeholder="Alice" /></div>
+          <div class="form-group"><label class="form-label">Last Name</label><input type="text" id="cust-last"
+              class="form-control" placeholder="Smith" /></div>
+          <div class="form-group"><label class="form-label">City</label><input type="text" id="cust-city"
+              class="form-control" placeholder="Kendrapara" /></div>
+          <div class="form-group"><label class="form-label">Mobile No</label><input type="text" id="cust-mobile"
+              class="form-control" placeholder="+91 7205109609" /></div>
+          <div class="form-group"><label class="form-label">Email</label><input type="email" id="cust-email"
+              class="form-control" placeholder="alice@email.com" /></div>
+          <div class="form-group"><label class="form-label">Region</label><select id="cust-region" class="form-control">
+              <option value="">Select</option>
+              <option>East</option>
+              <option>West</option>
+              <option>North</option>
+              <option>South</option>
+            </select></div>
+          <div class="form-group"><label class="form-label">Member Type</label><select id="cust-member"
+              class="form-control">
               <option value="Regular">Regular</option>
               <option value="Gold">Gold</option>
-            </select>
-          </div>
+            </select></div>
         </div>
         <div class="form-actions">
           <input type="hidden" id="cust-edit-id" value="" />
           <button class="btn btn-primary" id="cust-submit-btn" onclick="submitCustomer()">+ Add Customer</button>
-          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()" style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="cust-cancel-btn" onclick="cancelCustomerEdit()"
+            style="display:none;">Cancel</button>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">All Customers</div>
-          <span id="customers-count" style="color:var(--muted);font-size:11px;"></span>
+          <div class="panel-title">All Customers</div><span id="customers-count"
+            style="color:var(--muted);font-size:11px;"></span>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th><th>First Name</th><th>Last Name</th><th>City</th>
-                <th>Mobile</th><th>Email</th><th>Region</th><th>Member</th><th>Actions</th>
+                <th>ID</th>
+                <th>First</th>
+                <th>Last</th>
+                <th>City</th>
+                <th>Mobile</th>
+                <th>Email</th>
+                <th>Region</th>
+                <th>Member</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="customers-tbody"></tbody>
@@ -223,48 +228,50 @@
       </div>
     </section>
 
-    <!-- ══════════ PRODUCTS (PROTECTED) ══════════ -->
+    <!-- ═══ PRODUCTS ═══ -->
     <section class="section" id="section-products">
-      <div class="panel" style="margin-bottom:24px" id="product-form-panel">
+      <div class="panel" id="product-form-panel">
         <div class="panel-header">
           <div class="panel-title" id="product-form-title">Add Product</div>
         </div>
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">Product Name</label>
-            <input type="text" id="prod-name" class="form-control" placeholder="Laptop Pro" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Category</label>
-            <select id="prod-category" class="form-control">
-              <option value="Electronics">Electronics</option>
-              <option value="Home Goods">Home Goods</option>
-              <option value="Apparel">Apparel</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Unit Price ($)</label>
-            <input type="number" id="prod-price" class="form-control" step="0.01" min="0" placeholder="0.00" />
-          </div>
+          <div class="form-group"><label class="form-label">Product Name</label><input type="text" id="prod-name"
+              class="form-control" placeholder="Laptop Pro" /></div>
+          <div class="form-group"><label class="form-label">Category</label><select id="prod-category"
+              class="form-control">
+              <option>Electronics</option>
+              <option>Home Goods</option>
+              <option>Apparel</option>
+              <option>Other</option>
+            </select></div>
+          <div class="form-group"><label class="form-label">Unit Price ($)</label><input type="number" id="prod-price"
+              class="form-control" step="0.01" min="0" placeholder="0.00" /></div>
+          <div class="form-group"><label class="form-label">Initial Stock</label><input type="number" id="prod-stock"
+              class="form-control" min="0" value="0" /></div>
         </div>
         <div class="form-actions">
           <input type="hidden" id="prod-edit-id" value="" />
           <button class="btn btn-primary" id="prod-submit-btn" onclick="submitProduct()">+ Add Product</button>
-          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()" style="display:none;">Cancel</button>
+          <button class="btn btn-cancel" id="prod-cancel-btn" onclick="cancelProductEdit()"
+            style="display:none;">Cancel</button>
         </div>
       </div>
-
       <div class="panel">
         <div class="panel-header">
-          <div class="panel-title">All Products</div>
-          <span id="products-count" style="color:var(--muted);font-size:11px;"></span>
+          <div class="panel-title">All Products</div><span id="products-count"
+            style="color:var(--muted);font-size:11px;"></span>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th><th>Product Name</th><th>Category</th><th>Unit Price</th><th>Actions</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="products-tbody"></tbody>
@@ -273,9 +280,366 @@
       </div>
     </section>
 
+    
+    <!-- ═══ STOCKS (NEW DEDICATED PAGE) ═══ -->
+    <section class="section" id="section-stocks">
+
+      <!-- Restock Form -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Restock Product</div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Select Product</label>
+            <select id="restock-product" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Add Quantity</label>
+            <input type="number" id="restock-qty" class="form-control" min="1" value="1" placeholder="Qty to add" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-cyan" onclick="restockProduct()">+ Restock</button>
+        </div>
+      </div>
+
+      <!-- Stock KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Products</div>
+          <div class="kpi-value" id="stock-total">&mdash;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">In Stock</div>
+          <div class="kpi-value" id="stock-instock">&mdash;</div>
+        </div>
+
+        <!-- ✅ THIS WAS THE BROKEN CARD — NOW FIXED -->
+        <div class="kpi-card">
+          <div class="kpi-label">Low Stock (&le;10)</div>
+          <div class="kpi-value" id="stock-low">&mdash;</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-label">Out of Stock</div>
+          <div class="kpi-value" id="stock-out">&mdash;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Units</div>
+          <div class="kpi-value" id="stock-units">&mdash;</div>
+        </div>
+      </div>
+
+      <!-- Stock Charts -->
+      <div class="charts-row" style="grid-template-columns: 1fr 1fr;">
+        <div class="chart-card">
+          <div class="chart-title">Stock Levels by Product</div>
+          <div class="chart-wrap" style="height:260px;">
+            <canvas id="chartStockBar"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Stock Status Distribution</div>
+          <div class="chart-wrap" style="height:260px;">
+            <canvas id="chartStockPie"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock Filter & Table -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Stock Overview</div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-sm btn-ghost" onclick="filterStock('all')" id="stock-filter-all">All</button>
+            <button class="btn btn-sm btn-success" onclick="filterStock('instock')">In Stock</button>
+            <button class="btn btn-sm btn-orange" onclick="filterStock('low')">Low Stock</button>
+            <button class="btn btn-sm btn-danger" onclick="filterStock('out')">Out of Stock</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock Qty</th>
+                <th>Level</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="stocks-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Stock History -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Recent Stock Changes</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Type</th>
+                <th>Qty Change</th>
+                <th>New Stock</th>
+              </tr>
+            </thead>
+            <tbody id="stock-history-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══ INVOICES ═══ -->
+    <section class="section" id="section-invoices">
+
+      <!-- ── Invoice Builder Panel ── -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <div class="panel-title">📄 Invoice Builder</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--accent);letter-spacing:1px;"
+              id="inv-number-display">—</span>
+            <button class="btn btn-ghost btn-sm" onclick="genInvNo()" title="New invoice number">↻ New #</button>
+          </div>
+        </div>
+
+        <div style="padding:18px 20px;">
+          <!-- Row 1: Customer selector -->
+          <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:16px;align-items:start;">
+            <div class="form-group">
+              <label class="form-label">Select Customer ID</label>
+              <select id="inv-customer" class="form-control" onchange="onInvCustomerChange()">
+                <option value="">— Pick Customer —</option>
+              </select>
+            </div>
+            <!-- Customer details chip -->
+            <div id="inv-cust-chip"
+              style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;line-height:1.9;color:var(--muted);">
+              <span id="inv-cust-name" style="color:var(--text);font-weight:700;font-size:13px;display:block;"></span>
+              <span id="inv-cust-meta"></span>
+            </div>
+          </div>
+
+          <!-- Line items table -->
+          <div style="margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span class="form-label" style="margin:0;">Line Items
+                <span style="color:var(--muted);font-weight:400;font-size:10px;"> — auto-filled from customer sales on
+                  selection</span>
+              </span>
+              <button class="btn btn-ghost btn-sm" onclick="addInvRow()">+ Add Row</button>
+            </div>
+
+            <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+              <!-- Table header -->
+              <div
+                style="display:grid;grid-template-columns:36px 1fr 110px 70px 100px 36px;background:var(--surface2);border-bottom:1px solid var(--border);">
+                <div
+                  style="padding:8px 10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">
+                  #</div>
+                <div
+                  style="padding:8px 10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);">
+                  Description</div>
+                <div
+                  style="padding:8px 10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:right;">
+                  Unit Price</div>
+                <div
+                  style="padding:8px 10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:center;">
+                  Qty</div>
+                <div
+                  style="padding:8px 10px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-align:right;">
+                  Amount</div>
+                <div style="padding:8px;"></div>
+              </div>
+              <div id="inv-rows-container">
+                <div style="padding:28px;text-align:center;color:var(--muted);font-size:12px;">
+                  Select a customer above to auto-fill their sales, or click "+ Add Row"
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes + Totals row -->
+          <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:end;margin-bottom:16px;">
+            <div class="form-group">
+              <label class="form-label">Notes <span
+                  style="font-weight:400;color:var(--muted);">(optional)</span></label>
+              <input type="text" id="inv-notes" class="form-control"
+                placeholder="Payment instructions, thank you note…" />
+            </div>
+            <div id="inv-totals"
+              style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px;">
+                <span style="color:var(--muted);">Subtotal</span>
+                <span id="inv-sub" style="font-family:var(--font-mono);">$0.00</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px;">
+                <span style="color:var(--muted);">GST 18%</span>
+                <span id="inv-tax" style="font-family:var(--font-mono);">$0.00</span>
+              </div>
+              <div
+                style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between;">
+                <span style="font-weight:700;font-size:13px;">Total</span>
+                <span id="inv-grand"
+                  style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:15px;">$0.00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-ghost" onclick="previewInvoice()" style="flex:1;">👁 Preview</button>
+            <button class="btn btn-purple" onclick="saveInvoice()"
+              style="flex:1.2;background:#7c3aed;border:none;color:#fff;">💾 Save Invoice</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetInvoiceForm()" title="Clear form">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── All Saved Invoices Table ── -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">All Invoices</div>
+          <span id="invoices-count" style="color:var(--muted);font-size:11px;"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Customer</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Subtotal</th>
+                <th>GST 18%</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="invoices-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══ INVOICE PREVIEW MODAL ═══ -->
+    <div id="inv-modal-overlay"
+      style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:9000;overflow-y:auto;padding:28px 12px;">
+      <div
+        style="max-width:700px;margin:0 auto;border-radius:12px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,0.5);">
+        <!-- Modal toolbar -->
+        <div
+          style="background:#0f172a;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #334155;">
+          <span style="color:#94a3b8;font-size:12px;font-family:monospace;" id="inv-modal-no">Invoice Preview</span>
+          <div style="display:flex;gap:8px;">
+            <button onclick="downloadCustomInvoice()"
+              style="background:#7c3aed;color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:12px;">⬇
+              Download PDF</button>
+            <button onclick="closeInvModal()"
+              style="background:#1e293b;color:#94a3b8;border:1px solid #334155;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;">✕
+              Close</button>
+          </div>
+        </div>
+        <!-- Preview body (white, print-like) -->
+        <div id="inv-modal-body"
+          style="background:#fff;color:#1e293b;font-family:Arial,sans-serif;font-size:13px;line-height:1.6;padding:44px 52px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ REPORTS ═══ -->
+    <section class="section" id="section-reports">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Sales Reports</div>
+        </div>
+        <div class="filter-bar">
+          <div class="form-group"><label class="form-label">From</label><input type="date" id="report-from"
+              class="form-control" /></div>
+          <div class="form-group"><label class="form-label">To</label><input type="date" id="report-to"
+              class="form-control" /></div>
+          <div class="form-group"><label class="form-label">Category</label><select id="report-cat"
+              class="form-control">
+              <option value="">All</option>
+              <option>Electronics</option>
+              <option>Home Goods</option>
+              <option>Food</option>
+              <option>Apparel</option>
+              <option>Other</option>
+            </select></div>
+          <div class="form-group"><label class="form-label">Region</label><select id="report-region"
+              class="form-control">
+              <option value="">All</option>
+              <option>East</option>
+              <option>West</option>
+              <option>North</option>
+              <option>South</option>
+            </select></div>
+          <div class="form-group" style="justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="loadReport()">Generate</button>
+            <button class="btn btn-success btn-sm" onclick="exportCSV()" style="margin-left:6px;">CSV</button>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-grid" id="report-kpis" style="display:none;">
+        <div class="kpi-card">
+          <div class="kpi-label">Filtered Revenue</div>
+          <div class="kpi-value" id="rpt-revenue">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Filtered Sales</div>
+          <div class="kpi-value" id="rpt-count">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Order</div>
+          <div class="kpi-value" id="rpt-avg">—</div>
+        </div>
+      </div>
+      <div class="charts-row" id="report-charts" style="display:none;">
+        <div class="chart-card" style="grid-column:span 3;">
+          <div class="chart-title">Revenue Trend</div>
+          <div class="chart-wrap" style="height:260px;"><canvas id="chartReport"></canvas></div>
+        </div>
+      </div>
+      <div class="panel" id="report-table-panel" style="display:none;">
+        <div class="panel-header">
+          <div class="panel-title">Filtered Data</div><span id="report-count"
+            style="color:var(--muted);font-size:11px;"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Date</th>
+                <th>Qty</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody id="report-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <!-- ══════════ LOGIN OVERLAY ══════════ -->
+  <!-- Login Overlay -->
   <div class="login-overlay" id="login-overlay">
     <div class="login-card">
       <button class="login-close" onclick="hideLogin()">✕</button>
@@ -283,18 +647,16 @@
       <div class="login-subtitle">Admin Authentication</div>
       <div class="login-form">
         <input type="text" class="login-input" id="login-user" placeholder="Username" autocomplete="username" />
-        <input type="password" class="login-input" id="login-pass" placeholder="Password" autocomplete="current-password" />
+        <input type="password" class="login-input" id="login-pass" placeholder="Password"
+          autocomplete="current-password" />
         <div class="login-error" id="login-error"></div>
-        <button class="login-btn" id="login-submit-btn" onclick="login()">🔐  Login</button>
-        <div class="login-session-info">Session expires after 30 minutes of inactivity</div>
+        <button class="login-btn" id="login-submit-btn" onclick="login()">LOGIN</button>
+        <div class="login-session-info">Session expires after 30 minutes</div>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
   <div id="toast"></div>
-
-  <!-- JS -->
   <script src="script.js"></script>
 </body>
 

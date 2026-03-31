@@ -1,2052 +1,2116 @@
 """
-SalesDB — Full 47-Page Project Report Generator
-Run:  python generate_report.py
-Output: SalesDB_Project_Report.docx
+SalesDB — Updated 75-85 Page Report Generator
+Adds: SDLC Chapter, Source Code Chapter, Expanded Content
+Run:   python report_final.py
+Output: Retail_Sales_Data_Analysis_Final.docx
 """
 
 from docx import Document
-from docx.shared import Inches, Pt, Cm, RGBColor, Emu
+from docx.shared import Inches, Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.style import WD_STYLE_TYPE
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
-import numpy as np
+from docx.oxml.ns import qn, nsdecls
+from docx.oxml import parse_xml
 import os
 
-# ── Paths ────────────────────────────────────────
-IMG_DIR = "report_images"
-os.makedirs(IMG_DIR, exist_ok=True)
-
-# ── Colors ───────────────────────────────────────
-C_PRIMARY = "#0f172a"
-C_ACCENT = "#ec4899"
-C_ACCENT2 = "#3b82f6"
-C_SURFACE = "#1e293b"
-C_GREEN = "#3ddc84"
-C_PURPLE = "#a855f7"
-C_RED = "#f43f5e"
-C_YELLOW = "#fbbf24"
-
-
-# ══════════════════════════════════════════════════
-#  DIAGRAM GENERATORS
-# ══════════════════════════════════════════════════
-
-def create_system_architecture():
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 7)
-    ax.axis('off')
-    ax.set_title("System Architecture — SalesDB", fontsize=16, fontweight='bold', pad=20)
-
-    boxes = [
-        (0.5, 5.5, 2.5, 1, '#3b82f6', 'Browser\n(Chrome/Edge)', 'white'),
-        (4, 5.5, 2.5, 1, '#ec4899', 'HTML / CSS / JS\n(Frontend)', 'white'),
-        (4, 3.5, 2.5, 1, '#a855f7', 'Flask API\n(Python Backend)', 'white'),
-        (4, 1.5, 2.5, 1, '#3ddc84', 'PostgreSQL\n(Database)', 'white'),
-        (7.5, 5.5, 2, 1, '#fbbf24', 'Chart.js\n(Visualization)', 'black'),
-        (7.5, 3.5, 2, 1, '#f43f5e', 'REST API\n(JSON)', 'white'),
-    ]
-
-    for x, y, w, h, color, label, tc in boxes:
-        rect = FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                              facecolor=color, edgecolor='white', linewidth=2)
-        ax.add_patch(rect)
-        ax.text(x + w / 2, y + h / 2, label, ha='center', va='center',
-                fontsize=9, fontweight='bold', color=tc)
-
-    arrows = [
-        (2.9, 6, 4, 6), (6.5, 6, 7.5, 6), (5.25, 5.5, 5.25, 4.5),
-        (5.25, 3.5, 5.25, 2.5), (7.5, 4, 6.5, 4),
-    ]
-    for x1, y1, x2, y2 in arrows:
-        ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                    arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=2))
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "architecture.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_er_diagram():
-    fig, ax = plt.subplots(1, 1, figsize=(11, 7))
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 8)
-    ax.axis('off')
-    ax.set_title("Entity Relationship Diagram — SalesDB", fontsize=16, fontweight='bold', pad=20)
-
-    entities = {
-        'customer': {
-            'x': 1, 'y': 4, 'w': 3, 'h': 3.5, 'color': '#3b82f6',
-            'title': 'CUSTOMER_DIM',
-            'fields': [
-                'PK  customer_id  SERIAL',
-                '    first_name   VARCHAR(50)',
-                '    last_name    VARCHAR(50)',
-                '    city         VARCHAR(50)',
-                '    mobile_no    VARCHAR(20)',
-                '    email        VARCHAR(100)',
-                '    region       VARCHAR(20)',
-                '    member_type  VARCHAR(20)',
-            ]
-        },
-        'product': {
-            'x': 7.5, 'y': 4, 'w': 3, 'h': 2.5, 'color': '#a855f7',
-            'title': 'PRODUCT_DIM',
-            'fields': [
-                'PK  product_id    SERIAL',
-                '    product_name  VARCHAR(100)',
-                '    category      VARCHAR(50)',
-                '    unit_price    NUMERIC(10,2)',
-            ]
-        },
-        'sales': {
-            'x': 4, 'y': 0.5, 'w': 3, 'h': 3, 'color': '#ec4899',
-            'title': 'SALES_FACT',
-            'fields': [
-                'PK  sale_id      SERIAL',
-                'FK  customer_id  INTEGER',
-                'FK  product_id   INTEGER',
-                '    sale_date    DATE',
-                '    quantity     INTEGER',
-                '    sale_amount  NUMERIC(10,2)',
-            ]
-        },
-    }
-
-    for key, e in entities.items():
-        header_h = 0.5
-        rect = FancyBboxPatch((e['x'], e['y']), e['w'], e['h'],
-                              boxstyle="round,pad=0.05",
-                              facecolor='#1e293b', edgecolor=e['color'], linewidth=2)
-        ax.add_patch(rect)
-
-        header = FancyBboxPatch((e['x'], e['y'] + e['h'] - header_h), e['w'], header_h,
-                                boxstyle="round,pad=0.05",
-                                facecolor=e['color'], edgecolor=e['color'], linewidth=2)
-        ax.add_patch(header)
-
-        ax.text(e['x'] + e['w'] / 2, e['y'] + e['h'] - header_h / 2, e['title'],
-                ha='center', va='center', fontsize=9, fontweight='bold', color='white',
-                fontfamily='monospace')
-
-        for i, field in enumerate(e['fields']):
-            fy = e['y'] + e['h'] - header_h - 0.35 - i * 0.3
-            fc = '#fbbf24' if field.startswith('PK') else '#f43f5e' if field.startswith('FK') else '#94a3b8'
-            ax.text(e['x'] + 0.15, fy, field, fontsize=7, color=fc,
-                    fontfamily='monospace', va='center')
-
-    ax.annotate('', xy=(4, 2.5), xytext=(2.5, 4),
-                arrowprops=dict(arrowstyle='->', color='#3b82f6', lw=2.5))
-    ax.text(2.5, 3.5, '1:N', fontsize=10, fontweight='bold', color='#3b82f6')
-
-    ax.annotate('', xy=(7, 2.5), xytext=(8.5, 4),
-                arrowprops=dict(arrowstyle='->', color='#a855f7', lw=2.5))
-    ax.text(8, 3.5, '1:N', fontsize=10, fontweight='bold', color='#a855f7')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "er_diagram.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_dfd_level0():
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 5)
-    ax.axis('off')
-    ax.set_title("Data Flow Diagram — Level 0 (Context Diagram)", fontsize=14, fontweight='bold', pad=15)
-
-    ax.add_patch(FancyBboxPatch((0.5, 1.5), 2, 2, boxstyle="round,pad=0.1",
-                                facecolor='#3b82f6', edgecolor='white', lw=2))
-    ax.text(1.5, 2.5, 'USER\n(Admin)', ha='center', va='center',
-            fontsize=10, fontweight='bold', color='white')
-
-    circle = plt.Circle((5, 2.5), 1.2, facecolor='#ec4899', edgecolor='white', lw=2)
-    ax.add_patch(circle)
-    ax.text(5, 2.5, 'SalesDB\nSystem', ha='center', va='center',
-            fontsize=10, fontweight='bold', color='white')
-
-    ax.add_patch(FancyBboxPatch((7.5, 1.5), 2, 2, boxstyle="round,pad=0.1",
-                                facecolor='#3ddc84', edgecolor='white', lw=2))
-    ax.text(8.5, 2.5, 'PostgreSQL\nDatabase', ha='center', va='center',
-            fontsize=10, fontweight='bold', color='black')
-
-    ax.annotate('', xy=(3.8, 2.8), xytext=(2.5, 2.8),
-                arrowprops=dict(arrowstyle='->', color='#fbbf24', lw=2))
-    ax.text(3, 3.3, 'CRUD\nRequests', fontsize=8, ha='center', color='#fbbf24')
-
-    ax.annotate('', xy=(2.5, 2.2), xytext=(3.8, 2.2),
-                arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=2))
-    ax.text(3, 1.5, 'Reports &\nDashboard', fontsize=8, ha='center', color='#94a3b8')
-
-    ax.annotate('', xy=(7.5, 2.8), xytext=(6.2, 2.8),
-                arrowprops=dict(arrowstyle='->', color='#fbbf24', lw=2))
-    ax.text(6.8, 3.3, 'SQL\nQueries', fontsize=8, ha='center', color='#fbbf24')
-
-    ax.annotate('', xy=(6.2, 2.2), xytext=(7.5, 2.2),
-                arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=2))
-    ax.text(6.8, 1.5, 'Result\nSets', fontsize=8, ha='center', color='#94a3b8')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "dfd_level0.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_dfd_level1():
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 9)
-    ax.axis('off')
-    ax.set_title("Data Flow Diagram — Level 1", fontsize=14, fontweight='bold', pad=15)
-
-    ax.add_patch(FancyBboxPatch((0.3, 3.5), 1.8, 1.5, boxstyle="round,pad=0.1",
-                                facecolor='#3b82f6', edgecolor='white', lw=2))
-    ax.text(1.2, 4.25, 'USER', ha='center', va='center',
-            fontsize=10, fontweight='bold', color='white')
-
-    processes = [
-        (4, 7, 2.2, 1, '1.0', 'Manage\nCustomers', '#ec4899'),
-        (4, 5, 2.2, 1, '2.0', 'Manage\nProducts', '#a855f7'),
-        (4, 3, 2.2, 1, '3.0', 'Manage\nSales', '#f43f5e'),
-        (4, 1, 2.2, 1, '4.0', 'Generate\nAnalytics', '#fbbf24'),
-    ]
-
-    for x, y, w, h, num, label, color in processes:
-        circle = plt.Circle((x + w / 2, y + h / 2), 0.7,
-                             facecolor=color, edgecolor='white', lw=2)
-        ax.add_patch(circle)
-        ax.text(x + w / 2, y + h / 2 + 0.15, num, ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white')
-        ax.text(x + w / 2, y + h / 2 - 0.2, label, ha='center', va='center',
-                fontsize=7, color='white')
-
-    stores = [
-        (8, 7, 3.5, 0.8, 'D1', 'CUSTOMER_DIM', '#3b82f6'),
-        (8, 5, 3.5, 0.8, 'D2', 'PRODUCT_DIM', '#a855f7'),
-        (8, 3, 3.5, 0.8, 'D3', 'SALES_FACT', '#ec4899'),
-    ]
-
-    for x, y, w, h, did, label, color in stores:
-        ax.add_patch(Rectangle((x, y), w, h, facecolor='#1e293b',
-                                edgecolor=color, lw=2))
-        ax.plot([x + 0.6, x + 0.6], [y, y + h], color=color, lw=2)
-        ax.text(x + 0.3, y + h / 2, did, ha='center', va='center',
-                fontsize=8, fontweight='bold', color=color)
-        ax.text(x + 0.6 + (w - 0.6) / 2, y + h / 2, label, ha='center', va='center',
-                fontsize=8, color='white', fontfamily='monospace')
-
-    connections = [
-        (2.1, 4.5, 4, 7.5), (2.1, 4.3, 4, 5.5),
-        (2.1, 4.1, 4, 3.5), (2.1, 3.9, 4, 1.5),
-        (6.8, 7.5, 8, 7.4), (6.8, 5.5, 8, 5.4),
-        (6.8, 3.5, 8, 3.4), (6.8, 1.5, 8, 3.2),
-    ]
-
-    for x1, y1, x2, y2 in connections:
-        ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                    arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=1.5))
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "dfd_level1.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_flowchart():
-    fig, ax = plt.subplots(1, 1, figsize=(8, 12))
-    ax.set_xlim(0, 8)
-    ax.set_ylim(0, 14)
-    ax.axis('off')
-    ax.set_title("Program Execution Flowchart", fontsize=14, fontweight='bold', pad=15)
-
-    def draw_box(x, y, w, h, text, color, shape='rect'):
-        if shape == 'oval':
-            ellipse = plt.matplotlib.patches.Ellipse((x + w / 2, y + h / 2), w, h,
-                                                      facecolor=color, edgecolor='white', lw=2)
-            ax.add_patch(ellipse)
-        elif shape == 'diamond':
-            diamond = plt.Polygon([
-                (x + w / 2, y + h), (x + w, y + h / 2),
-                (x + w / 2, y), (x, y + h / 2)
-            ], facecolor=color, edgecolor='white', lw=2)
-            ax.add_patch(diamond)
-        else:
-            ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.05",
-                                        facecolor=color, edgecolor='white', lw=2))
-        ax.text(x + w / 2, y + h / 2, text, ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white')
-
-    steps = [
-        (2.5, 12.5, 3, 0.8, 'START', '#3ddc84', 'oval'),
-        (2.5, 11, 3, 0.8, 'Flask Server\nStarts', '#3b82f6', 'rect'),
-        (2.5, 9.5, 3, 0.8, 'User Opens\nBrowser', '#a855f7', 'rect'),
-        (2.5, 8, 3, 0.8, 'Load\nDashboard?', '#fbbf24', 'diamond'),
-        (2.5, 6.3, 3, 0.8, 'Fetch KPIs\n& Charts', '#ec4899', 'rect'),
-        (2.5, 4.8, 3, 0.8, 'User Action?\n(CRUD)', '#fbbf24', 'diamond'),
-        (2.5, 3.3, 3, 0.8, 'Send API\nRequest', '#3b82f6', 'rect'),
-        (2.5, 1.8, 3, 0.8, 'Database\nOperation', '#3ddc84', 'rect'),
-        (2.5, 0.3, 3, 0.8, 'Update UI\n& Toast', '#ec4899', 'rect'),
-    ]
-
-    for x, y, w, h, text, color, shape in steps:
-        draw_box(x, y, w, h, text, color, shape)
-
-    arrow_pairs = [
-        (4, 12.5, 4, 11.8), (4, 11, 4, 10.3), (4, 9.5, 4, 8.8),
-        (4, 8, 4, 7.1), (4, 6.3, 4, 5.6), (4, 4.8, 4, 4.1),
-        (4, 3.3, 4, 2.6), (4, 1.8, 4, 1.1),
-    ]
-
-    for x1, y1, x2, y2 in arrow_pairs:
-        ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
-                    arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=2))
-
-    ax.annotate('', xy=(2.5, 5.2), xytext=(1.5, 5.2),
-                arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=1.5))
-    ax.text(0.5, 5.2, 'Navigate\nSections', fontsize=7, color='#94a3b8', ha='center')
-
-    ax.annotate('', xy=(6, 1), xytext=(6, 8.4),
-                arrowprops=dict(arrowstyle='->', color='#f43f5e', lw=1.5, linestyle='dashed'))
-    ax.text(6.8, 4.5, 'Loop Back', fontsize=8, color='#f43f5e', rotation=90, ha='center')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "flowchart.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_component_diagram():
-    fig, ax = plt.subplots(1, 1, figsize=(11, 7))
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 8)
-    ax.axis('off')
-    ax.set_title("Component Diagram — SalesDB", fontsize=14, fontweight='bold', pad=15)
-
-    layers = [
-        (0.5, 5.5, 10, 2, 'Presentation Layer (Frontend)', '#3b82f620', '#3b82f6'),
-        (0.5, 3, 10, 2, 'Application Layer (Backend API)', '#ec489920', '#ec4899'),
-        (0.5, 0.5, 10, 2, 'Data Layer (Database)', '#3ddc8420', '#3ddc84'),
-    ]
-
-    for x, y, w, h, label, fc, ec in layers:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                                    facecolor=fc, edgecolor=ec, lw=2, linestyle='dashed'))
-        ax.text(x + 0.2, y + h - 0.3, label, fontsize=9, fontweight='bold', color=ec)
-
-    pres_components = [
-        (1, 5.7, 'index.html'), (3.5, 5.7, 'styles.css'),
-        (6, 5.7, 'script.js'), (8.5, 5.7, 'Chart.js'),
-    ]
-    for x, y, label in pres_components:
-        ax.add_patch(FancyBboxPatch((x, y), 2, 0.8, boxstyle="round,pad=0.05",
-                                    facecolor='#334155', edgecolor='#3b82f6', lw=1.5))
-        ax.text(x + 1, y + 0.4, label, ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white', fontfamily='monospace')
-
-    api_components = [
-        (1, 3.2, 'app.py\n(Routes)'), (3.5, 3.2, 'Flask\nFramework'),
-        (6, 3.2, 'psycopg2\n(DB Driver)'), (8.5, 3.2, 'flask-cors\n(CORS)'),
-    ]
-    for x, y, label in api_components:
-        ax.add_patch(FancyBboxPatch((x, y), 2, 0.8, boxstyle="round,pad=0.05",
-                                    facecolor='#334155', edgecolor='#ec4899', lw=1.5))
-        ax.text(x + 1, y + 0.4, label, ha='center', va='center',
-                fontsize=7, fontweight='bold', color='white')
-
-    db_components = [
-        (1, 0.7, 'customer_dim'), (4, 0.7, 'product_dim'), (7, 0.7, 'sales_fact'),
-    ]
-    for x, y, label in db_components:
-        ax.add_patch(FancyBboxPatch((x, y), 2.5, 0.8, boxstyle="round,pad=0.05",
-                                    facecolor='#334155', edgecolor='#3ddc84', lw=1.5))
-        ax.text(x + 1.25, y + 0.4, label, ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white', fontfamily='monospace')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "component_diagram.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_sdlc_diagram():
-    fig, ax = plt.subplots(1, 1, figsize=(9, 9))
-    ax.set_xlim(-5, 5)
-    ax.set_ylim(-5, 5)
-    ax.axis('off')
-    ax.set_title("Agile SDLC Model — Iterative Development", fontsize=14, fontweight='bold', pad=20)
-
-    phases = [
-        ('Planning', '#3b82f6', 0),
-        ('Analysis', '#a855f7', 1),
-        ('Design', '#ec4899', 2),
-        ('Implementation', '#f43f5e', 3),
-        ('Testing', '#fbbf24', 4),
-        ('Deployment', '#3ddc84', 5),
-    ]
-
-    n = len(phases)
-    radius = 3.5
-
-    for i, (label, color, idx) in enumerate(phases):
-        angle = 90 - i * (360 / n)
-        rad = np.radians(angle)
-        x = radius * np.cos(rad)
-        y = radius * np.sin(rad)
-
-        circle = plt.Circle((x, y), 0.8, facecolor=color, edgecolor='white', lw=2)
-        ax.add_patch(circle)
-        ax.text(x, y, f"{i + 1}\n{label}", ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white')
-
-        next_angle = 90 - ((i + 1) % n) * (360 / n)
-        next_rad = np.radians(next_angle)
-        nx = radius * np.cos(next_rad)
-        ny = radius * np.sin(next_rad)
-
-        dx = nx - x
-        dy = ny - y
-        dist = np.sqrt(dx ** 2 + dy ** 2)
-        sx = x + 0.85 * dx / dist
-        sy = y + 0.85 * dy / dist
-        ex = nx - 0.85 * dx / dist
-        ey = ny - 0.85 * dy / dist
-
-        ax.annotate('', xy=(ex, ey), xytext=(sx, sy),
-                    arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=2))
-
-    center_circle = plt.Circle((0, 0), 1.2, facecolor='#1e293b', edgecolor='#ec4899', lw=3)
-    ax.add_patch(center_circle)
-    ax.text(0, 0.2, 'AGILE', ha='center', va='center',
-            fontsize=12, fontweight='bold', color='#ec4899')
-    ax.text(0, -0.3, 'Iterative', ha='center', va='center',
-            fontsize=9, color='#94a3b8')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "sdlc_model.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_tech_stack():
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 7)
-    ax.axis('off')
-    ax.set_title("Technology Stack", fontsize=14, fontweight='bold', pad=15)
-
-    stack = [
-        (1, 5.5, 8, 1, 'Frontend: HTML5 + CSS3 + JavaScript (ES6+)', '#3b82f6'),
-        (1, 4, 8, 1, 'Charting: Chart.js 4.4.1', '#a855f7'),
-        (1, 2.5, 8, 1, 'Backend: Python 3 + Flask + flask-cors', '#ec4899'),
-        (1, 1, 8, 1, 'Database: PostgreSQL + psycopg2', '#3ddc84'),
-    ]
-
-    for x, y, w, h, label, color in stack:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                                    facecolor=color, edgecolor='white', lw=2))
-        ax.text(x + w / 2, y + h / 2, label, ha='center', va='center',
-                fontsize=11, fontweight='bold', color='white')
-
-    for i in range(3):
-        y = 5.5 - i * 1.5
-        ax.annotate('', xy=(5, y), xytext=(5, y + 0.5),
-                    arrowprops=dict(arrowstyle='<->', color='#fbbf24', lw=2))
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "tech_stack.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_sequence_diagram():
-    fig, ax = plt.subplots(1, 1, figsize=(11, 9))
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 10)
-    ax.axis('off')
-    ax.set_title("Sequence Diagram — Add Sale", fontsize=14, fontweight='bold', pad=15)
-
-    actors = [
-        (1.5, 9, 'User'), (4, 9, 'Frontend\n(JS)'),
-        (6.5, 9, 'Flask API'), (9, 9, 'PostgreSQL'),
-    ]
-
-    for x, y, label in actors:
-        ax.add_patch(FancyBboxPatch((x - 0.6, y - 0.3), 1.2, 0.7,
-                                    boxstyle="round,pad=0.05",
-                                    facecolor='#334155', edgecolor='#3b82f6', lw=2))
-        ax.text(x, y, label, ha='center', va='center',
-                fontsize=8, fontweight='bold', color='white')
-        ax.plot([x, x], [0.5, y - 0.3], color='#334155', lw=1.5, linestyle='dashed')
-
-    messages = [
-        (1.5, 4, 8, 'Fills form & clicks Add Sale', '#fbbf24'),
-        (4, 4, 7.5, 'POST /api/sales (JSON)', '#ec4899'),
-        (6.5, 4, 7, 'INSERT INTO sales_fact', '#a855f7'),
-        (9, 6.5, 6.5, 'Returns sale_id', '#3ddc84'),
-        (6.5, 9, 6, 'JSON Response 201', '#ec4899'),
-        (4, 9, 5.5, 'Update UI + Toast', '#3b82f6'),
-    ]
-
-    y_pos = 8
-    for fx, fy_off, tx, label, color in messages:
-        y_pos -= 0.9
-        if fx < tx:
-            ax.annotate('', xy=(tx, y_pos), xytext=(fx, y_pos),
-                        arrowprops=dict(arrowstyle='->', color=color, lw=2))
-        else:
-            ax.annotate('', xy=(tx, y_pos), xytext=(fx, y_pos),
-                        arrowprops=dict(arrowstyle='->', color=color, lw=2, linestyle='dashed'))
-        mid = (fx + tx) / 2
-        ax.text(mid, y_pos + 0.2, label, ha='center', fontsize=7, color=color)
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "sequence_diagram.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_deployment_diagram():
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 7)
-    ax.axis('off')
-    ax.set_title("Deployment Diagram", fontsize=14, fontweight='bold', pad=15)
-
-    nodes = [
-        (0.5, 2, 2.5, 3, 'Client Machine', '#3b82f6',
-         ['Chrome Browser', 'index.html', 'styles.css', 'script.js']),
-        (4, 2, 2.5, 3, 'Application Server', '#ec4899',
-         ['Python 3.x', 'Flask App', 'app.py', 'Port: 5000']),
-        (7.5, 2, 2.5, 3, 'Database Server', '#3ddc84',
-         ['PostgreSQL 16', 'sales_db', 'Port: 5432', '3 Tables']),
-    ]
-
-    for x, y, w, h, title, color, items in nodes:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                                    facecolor='#1e293b', edgecolor=color, lw=2))
-        ax.add_patch(FancyBboxPatch((x, y + h - 0.5), w, 0.5, boxstyle="round,pad=0.05",
-                                    facecolor=color, edgecolor=color, lw=2))
-        ax.text(x + w / 2, y + h - 0.25, title, ha='center', va='center',
-                fontsize=9, fontweight='bold', color='white')
-
-        for i, item in enumerate(items):
-            ax.text(x + 0.2, y + h - 0.9 - i * 0.45, f'• {item}',
-                    fontsize=7, color='#94a3b8')
-
-    ax.annotate('', xy=(4, 3.5), xytext=(3, 3.5),
-                arrowprops=dict(arrowstyle='<->', color='#fbbf24', lw=2))
-    ax.text(3.5, 3.9, 'HTTP', fontsize=8, ha='center', color='#fbbf24', fontweight='bold')
-
-    ax.annotate('', xy=(7.5, 3.5), xytext=(6.5, 3.5),
-                arrowprops=dict(arrowstyle='<->', color='#fbbf24', lw=2))
-    ax.text(7, 3.9, 'TCP/IP', fontsize=8, ha='center', color='#fbbf24', fontweight='bold')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "deployment_diagram.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_sample_dashboard():
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-
-    categories = ['Electronics', 'Home Goods', 'Apparel', 'Other']
-    revenue = [45000, 28000, 18000, 9000]
-    colors = ['#ec4899', '#3b82f6', '#a855f7', '#f43f5e']
-
-    axes[0].bar(categories, revenue, color=colors, edgecolor='white', linewidth=0.5)
-    axes[0].set_title('Revenue by Category', fontsize=10, fontweight='bold', color='white')
-    axes[0].set_facecolor('#1e293b')
-    axes[0].tick_params(colors='#94a3b8', labelsize=7)
-    axes[0].spines['bottom'].set_color('#334155')
-    axes[0].spines['left'].set_color('#334155')
-    axes[0].spines['top'].set_visible(False)
-    axes[0].spines['right'].set_visible(False)
-
-    axes[1].pie(revenue, labels=categories, autopct='%1.1f%%', colors=colors,
-                textprops={'fontsize': 8, 'color': 'white'}, startangle=90,
-                pctdistance=0.8, wedgeprops=dict(width=0.4))
-    axes[1].set_title('Sales Distribution', fontsize=10, fontweight='bold', color='white')
-
-    axes[2].pie(revenue[:2], labels=['Gold', 'Regular'], autopct='%1.1f%%',
-                colors=['#fbbf24', '#64748b'],
-                textprops={'fontsize': 9, 'color': 'white'}, startangle=90)
-    axes[2].set_title('Customer Segments', fontsize=10, fontweight='bold', color='white')
-
-    fig.patch.set_facecolor('#0f172a')
-    for ax_item in [axes[1], axes[2]]:
-        ax_item.set_facecolor('#0f172a')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "sample_dashboard.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-def create_crud_flowchart():
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 9)
-    ax.axis('off')
-    ax.set_title("CRUD Operations Flowchart", fontsize=14, fontweight='bold', pad=15)
-
-    ops = [
-        (1, 7, 2, 1, 'CREATE\n(POST)', '#3ddc84'),
-        (4, 7, 2, 1, 'READ\n(GET)', '#3b82f6'),
-        (1, 4, 2, 1, 'UPDATE\n(PUT)', '#fbbf24'),
-        (4, 4, 2, 1, 'DELETE\n(DELETE)', '#f43f5e'),
-    ]
-
-    for x, y, w, h, label, color in ops:
-        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.1",
-                                    facecolor=color, edgecolor='white', lw=2))
-        ax.text(x + w / 2, y + h / 2, label, ha='center', va='center',
-                fontsize=9, fontweight='bold', color='white' if color != '#fbbf24' else 'black')
-
-    ax.add_patch(FancyBboxPatch((7, 5), 2.5, 2, boxstyle="round,pad=0.1",
-                                facecolor='#1e293b', edgecolor='#ec4899', lw=2))
-    ax.text(8.25, 6, 'PostgreSQL\nDatabase', ha='center', va='center',
-            fontsize=10, fontweight='bold', color='#ec4899')
-
-    for x_start, y_start in [(3, 7.5), (6, 7.5), (3, 4.5), (6, 4.5)]:
-        ax.annotate('', xy=(7, 6), xytext=(x_start, y_start),
-                    arrowprops=dict(arrowstyle='->', color='#94a3b8', lw=1.5))
-
-    details = [
-        (0.5, 2.5, 'CREATE: Validates → INSERT INTO → Returns new record'),
-        (0.5, 2, 'READ:     Fetches → SELECT → Returns JSON array'),
-        (0.5, 1.5, 'UPDATE: Validates → UPDATE SET → Returns updated record'),
-        (0.5, 1, 'DELETE:  Confirms → DELETE WHERE → Returns deleted ID'),
-    ]
-    for x, y, text in details:
-        ax.text(x, y, text, fontsize=8, color='#94a3b8', fontfamily='monospace')
-
-    plt.tight_layout()
-    path = os.path.join(IMG_DIR, "crud_flowchart.png")
-    plt.savefig(path, dpi=150, bbox_inches='tight', facecolor='#0f172a')
-    plt.close()
-    return path
-
-
-# ══════════════════════════════════════════════════
-#  DOCUMENT HELPERS
-# ══════════════════════════════════════════════════
-
-def set_cell_shading(cell, color):
-    shading = OxmlElement('w:shd')
-    shading.set(qn('w:fill'), color)
-    shading.set(qn('w:val'), 'clear')
-    cell._tc.get_or_add_tcPr().append(shading)
-
-
-def add_styled_table(doc, headers, rows, col_widths=None):
+FONT = 'Arial'
+H1 = 14   # Chapter heading
+H2 = 12   # Section heading
+H3 = 12   # Subsection heading
+BODY = 11  # Body text
+SMALL = 10
+CODE_FONT = 'Consolas'
+CODE_SZ = 8
+
+# ═══ STUDENT INFO ═══
+PROJECT = "Retail Sales Data Analysis"
+STUDENT = "Barsha Priyadarsini Parida"
+ROLL = "24MC034"
+GUIDE = "Prof. Prangya Paramita Mohapatra"
+GUIDE_TITLE = "Associate Professor, Dept. of MCA"
+COLLEGE = "GITA AUTONOMOUS COLLEGE"
+ADDR = "BHUBANESWAR — 752054"
+SESSION = "2024-26"
+DEGREE = "Master in Computer Application"
+
+
+# ═══ FORMATTING HELPERS ═══
+
+def sf(run, name=FONT, size=BODY, bold=False, italic=False,
+       color=None, underline=False):
+    run.font.name = name
+    run.font.size = Pt(size)
+    run.font.bold = bold
+    run.font.italic = italic
+    run.font.underline = underline
+    if color:
+        run.font.color.rgb = RGBColor(*color)
+    r = run._element
+    r.rPr.rFonts.set(qn('w:eastAsia'), name)
+
+
+def para(doc, text, size=BODY, bold=False, italic=False,
+         align=WD_ALIGN_PARAGRAPH.JUSTIFY, sa=6, sb=0,
+         color=None, indent=None, line_spacing=1.5):
+    p = doc.add_paragraph()
+    p.alignment = align
+    pf = p.paragraph_format
+    pf.space_after = Pt(sa)
+    pf.space_before = Pt(sb)
+    pf.line_spacing = line_spacing
+    if indent:
+        pf.left_indent = Cm(indent)
+    run = p.add_run(text)
+    sf(run, FONT, size, bold, italic, color)
+    return p
+
+
+def heading(doc, text, level=1, number=""):
+    sizes = {1: H1, 2: H2, 3: H3, 4: BODY}
+    sz = sizes.get(level, BODY)
+    full = f"{number}  {text}" if number else text
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    pf = p.paragraph_format
+    pf.space_before = Pt(18 if level == 1 else 12)
+    pf.space_after = Pt(8)
+    pf.line_spacing = 1.5
+    run = p.add_run(full.upper() if level == 1 else full)
+    sf(run, FONT, sz, bold=True)
+    return p
+
+
+def chapter_title(doc, chapter_num, title):
+    para(doc, "", sa=30)
+    para(doc, f"CHAPTER {chapter_num}", H1 + 2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=4)
+    para(doc, title.upper(), H1 + 2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=12)
+
+
+def bullet(doc, text, indent=1):
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent = Cm(indent)
+    p.paragraph_format.space_after = Pt(3)
+    p.paragraph_format.line_spacing = 1.5
+    run = p.add_run(f"•  {text}")
+    sf(run, FONT, BODY)
+    return p
+
+
+def numbered(doc, num, text, indent=1):
+    p = doc.add_paragraph()
+    p.paragraph_format.left_indent = Cm(indent)
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.line_spacing = 1.5
+    run = p.add_run(f"{num}. ")
+    sf(run, FONT, BODY, bold=True)
+    run = p.add_run(text)
+    sf(run, FONT, BODY)
+    return p
+
+
+def code_block(doc, code, caption=""):
+    if caption:
+        para(doc, caption, SMALL, italic=True,
+             align=WD_ALIGN_PARAGRAPH.LEFT, sa=2)
+    for line in code.strip().split('\n'):
+        p = doc.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        pf = p.paragraph_format
+        pf.space_after = Pt(0)
+        pf.space_before = Pt(0)
+        pf.line_spacing = 1.0
+        pf.left_indent = Cm(0.5)
+        run = p.add_run(line)
+        sf(run, CODE_FONT, CODE_SZ)
+        shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="F5F5F5"/>')
+        p._element.get_or_add_pPr().append(shading)
+    para(doc, "", sa=4)
+
+
+def add_table(doc, headers, rows, caption=""):
+    if caption:
+        para(doc, caption, SMALL, bold=True,
+             align=WD_ALIGN_PARAGRAPH.CENTER, sa=4)
     table = doc.add_table(rows=1 + len(rows), cols=len(headers))
+    table.style = 'Table Grid'
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
-    for i, header in enumerate(headers):
+    for i, h in enumerate(headers):
         cell = table.rows[0].cells[i]
-        cell.text = header
-        for paragraph in cell.paragraphs:
-            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            for run in paragraph.runs:
-                run.bold = True
-                run.font.size = Pt(9)
-                run.font.color.rgb = RGBColor(255, 255, 255)
-        set_cell_shading(cell, '1e293b')
+        cell.text = ""
+        p = cell.paragraphs[0]
+        run = p.add_run(h)
+        sf(run, FONT, SMALL, bold=True, color=(255, 255, 255))
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="2563EB"/>')
+        cell._element.get_or_add_tcPr().append(shading)
+    for r, row in enumerate(rows):
+        for c, val in enumerate(row):
+            cell = table.rows[r + 1].cells[c]
+            cell.text = ""
+            p = cell.paragraphs[0]
+            run = p.add_run(str(val))
+            sf(run, FONT, SMALL)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if r % 2 == 0:
+                shading = parse_xml(
+                    f'<w:shd {nsdecls("w")} w:fill="F0F4FF"/>')
+                cell._element.get_or_add_tcPr().append(shading)
+    para(doc, "", sa=6)
 
-    for r_idx, row_data in enumerate(rows):
-        for c_idx, cell_text in enumerate(row_data):
-            cell = table.rows[r_idx + 1].cells[c_idx]
-            cell.text = str(cell_text)
-            for paragraph in cell.paragraphs:
-                for run in paragraph.runs:
-                    run.font.size = Pt(9)
-            bg = 'f8fafc' if r_idx % 2 == 0 else 'e2e8f0'
-            set_cell_shading(cell, bg)
 
-    return table
-
-
-def add_page_break(doc):
+def page_break(doc):
     doc.add_page_break()
 
 
-def add_spacer(doc, lines=1):
-    for _ in range(lines):
-        doc.add_paragraph('')
+def blank(doc, n=1):
+    for _ in range(n):
+        para(doc, "", sa=0)
 
 
-# ══════════════════════════════════════════════════
-#  BUILD DOCUMENT
-# ══════════════════════════════════════════════════
-
-def build_report():
-    doc = Document()
-
-    # ── Default style ────────────────────────────
-    style = doc.styles['Normal']
-    style.font.name = 'Calibri'
-    style.font.size = Pt(11)
-    style.paragraph_format.space_after = Pt(6)
-    style.paragraph_format.line_spacing = 1.15
-
-    for i in range(1, 5):
-        hs = doc.styles[f'Heading {i}']
-        hs.font.name = 'Calibri'
-        hs.font.color.rgb = RGBColor(15, 23, 42)
-
-    # ── Page margins ─────────────────────────────
+def header_footer(doc):
     for section in doc.sections:
         section.top_margin = Cm(2.54)
         section.bottom_margin = Cm(2.54)
-        section.left_margin = Cm(3)
+        section.left_margin = Cm(3.17)
         section.right_margin = Cm(2.54)
+        h = section.header
+        hp = h.paragraphs[0] if h.paragraphs else h.add_paragraph()
+        hp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        run = hp.add_run(f"{PROJECT} | Project Report")
+        sf(run, FONT, 8, italic=True, color=(150, 150, 150))
+        f = section.footer
+        fp = f.paragraphs[0] if f.paragraphs else f.add_paragraph()
+        fp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        run = fp.add_run()
+        fld = (f'<w:fldSimple {nsdecls("w")} w:instr=" PAGE "'
+               f'><w:r><w:t>1</w:t></w:r></w:fldSimple>')
+        run._element.append(parse_xml(fld))
+        sf(run, FONT, 9)
 
-    # ══════════════════════════════════════════════
-    #  PAGE 1-2: COVER PAGE
-    # ══════════════════════════════════════════════
-    add_spacer(doc, 6)
+
+# ═══════════════════════════════════════════
+#  COVER PAGE
+# ═══════════════════════════════════════════
+
+def cover_page(doc):
+    blank(doc, 2)
+    para(doc, DEGREE.upper(), H1, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    para(doc, "Project Report on", BODY, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=4)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run('SALESDB')
-    run.font.size = Pt(48)
-    run.bold = True
-    run.font.color.rgb = RGBColor(236, 72, 153)
+    run = p.add_run(PROJECT)
+    sf(run, FONT, H1 + 2, bold=True)
+    run.font.underline = True
+    run.font.color.rgb = RGBColor(26, 26, 46)
+    blank(doc, 2)
+    para(doc, "Under the Able Guidance of", H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=4)
+    para(doc, GUIDE, H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2)
+    para(doc, GUIDE_TITLE, BODY, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    blank(doc, 1)
+    para(doc, "Submitted By", H2, bold=True, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=4,
+         color=(180, 0, 0))
+    para(doc, STUDENT, H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2)
+    para(doc, f"Roll No.: {ROLL}", BODY, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    blank(doc, 2)
+    para(doc, "[COLLEGE LOGO]", BODY, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER,
+         color=(180, 180, 180), sa=8)
+    para(doc, f"DEPARTMENT OF {DEGREE.upper()}", H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2)
+    para(doc, COLLEGE, H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2)
+    para(doc, ADDR, BODY,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2)
+    para(doc, SESSION, H2, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+    page_break(doc)
 
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run('Sales Analytics Dashboard')
-    run.font.size = Pt(22)
-    run.font.color.rgb = RGBColor(59, 130, 246)
 
-    add_spacer(doc, 2)
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = p.add_run('A Comprehensive Full-Stack Web Application\nfor Sales Data Management & Analytics')
-    run.font.size = Pt(14)
-    run.font.color.rgb = RGBColor(100, 116, 139)
+# ═══════════════════════════════════════════
+#  CERTIFICATE, DECLARATION, ACKNOWLEDGEMENT
+# ═══════════════════════════════════════════
 
-    add_spacer(doc, 4)
-
-    info = [
-        'Project Report',
-        '',
-        'Submitted by: [Your Name]',
-        'Roll Number: [Your Roll No]',
-        'Department: [Your Department]',
-        'Institution: [Your Institution]',
-        '',
-        'Under the guidance of:',
-        'Prof. [Guide Name]',
-        '',
-        'Academic Year: 2024-2025',
-    ]
-    for line in info:
-        p = doc.add_paragraph()
+def certificate(doc):
+    para(doc, COLLEGE, H1, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2, sb=20)
+    para(doc, ADDR, BODY,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    para(doc, "[COLLEGE LOGO]", BODY, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER,
+         color=(180, 180, 180), sa=16)
+    heading(doc, "Certificate", 1)
+    blank(doc, 1)
+    para(doc, (
+        f'This is to certify that the project entitled "{PROJECT}" '
+        f'being submitted by Ms. {STUDENT} bearing Registration No. '
+        f'{ROLL} in partial fulfilment of the requirement for the award '
+        f'of the degree of {DEGREE} is a bonafide work carried out at '
+        f'{COLLEGE} under my Supervision.'
+    ))
+    blank(doc, 5)
+    t = doc.add_table(rows=1, cols=3)
+    for i, label in enumerate(["Signature of Student",
+                                "Project Guide",
+                                "Head of Department"]):
+        cell = t.rows[0].cells[i]
+        cell.text = ""
+        p = cell.paragraphs[0]
+        run = p.add_run(label)
+        sf(run, FONT, BODY, bold=True)
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = p.add_run(line)
-        run.font.size = Pt(12)
-        if 'Submitted' in line or 'Under' in line:
-            run.bold = True
+    page_break(doc)
 
-    add_page_break(doc)
 
-    # ══════════════════════════════════════════════
-    #  PAGE 3: CERTIFICATE
-    # ══════════════════════════════════════════════
-    add_spacer(doc, 2)
-    doc.add_heading('CERTIFICATE', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    doc.add_paragraph(
-        'This is to certify that the project report entitled "SalesDB — Sales Analytics Dashboard" '
-        'is a bonafide record of the project work carried out by [Your Name], '
-        'Roll Number [Your Roll No], during the academic year 2024-2025 in partial fulfillment '
-        'of the requirements for the award of [Your Degree] in [Your Department] '
-        'at [Your Institution].'
-    )
-    add_spacer(doc, 3)
+def declaration(doc):
+    para(doc, COLLEGE, H1, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2, sb=20)
+    para(doc, ADDR, BODY,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    heading(doc, "Declaration", 1)
+    blank(doc, 1)
+    para(doc, (
+        f"I hereby declare that the matter embodied in this project "
+        f"report is original and has not been submitted for the award "
+        f"of any other degree."
+    ))
+    blank(doc, 5)
+    para(doc, "Signature", align=WD_ALIGN_PARAGRAPH.CENTER)
+    para(doc, f"Name: {STUDENT}",
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+    para(doc, f"Regd. No.: {ROLL}",
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+    page_break(doc)
 
-    p = doc.add_paragraph()
-    p.add_run('Project Guide').bold = True
-    p.add_run('\t\t\t\t\t')
-    p.add_run('Head of Department').bold = True
 
-    add_spacer(doc, 2)
-    p = doc.add_paragraph()
-    p.add_run('Prof. [Guide Name]')
-    p.add_run('\t\t\t\t')
-    p.add_run('Prof. [HOD Name]')
+def acknowledgement(doc):
+    para(doc, COLLEGE, H1, bold=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=2, sb=20)
+    para(doc, ADDR, BODY,
+         align=WD_ALIGN_PARAGRAPH.CENTER, sa=16)
+    heading(doc, "Acknowledgement", 1)
+    blank(doc, 1)
+    para(doc, (
+        f"With immense pleasure I, Ms. {STUDENT}, presenting "
+        f'"{PROJECT}" project report as part of the curriculum of MCA. '
+        f"I would like to express my special thanks of gratitude to "
+        f"{GUIDE} for able guidance and support in completing my project."
+    ))
+    para(doc, (
+        f"I express my profound thanks to Head of The Department "
+        f"for moral support and guidance. And all those who have "
+        f"indirectly guided and helped me in preparation of this project."
+    ))
+    blank(doc, 3)
+    para(doc, "Signature of Student",
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+    page_break(doc)
 
-    add_spacer(doc, 4)
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.add_run('External Examiner').bold = True
 
-    add_page_break(doc)
+# ═══════════════════════════════════════════
+#  ABSTRACT
+# ═══════════════════════════════════════════
 
-    # ══════════════════════════════════════════════
-    #  PAGE 4: DECLARATION
-    # ══════════════════════════════════════════════
-    add_spacer(doc, 2)
-    doc.add_heading('DECLARATION', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    doc.add_paragraph(
-        'I hereby declare that the project entitled "SalesDB — Sales Analytics Dashboard" '
-        'submitted to [Your Institution] for the award of [Your Degree] in [Your Department] '
-        'is a record of original work done by me under the guidance of Prof. [Guide Name], '
-        'and this project work has not been submitted to any other University or Institution '
-        'for the award of any other degree, diploma, or certificate.'
-    )
-    add_spacer(doc, 4)
-    p = doc.add_paragraph()
-    p.add_run('Place: [Your City]')
-    doc.add_paragraph('Date: _______________')
-    add_spacer(doc, 2)
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.add_run('[Your Name]\n[Your Roll No]').bold = True
+def abstract(doc):
+    heading(doc, "ABSTRACT", 1)
+    blank(doc, 1)
+    para(doc, (
+        f'The present project, "{PROJECT}", is a comprehensive '
+        f'full-stack web application developed as the major project for '
+        f'the degree of {DEGREE} at {COLLEGE}, Bhubaneswar. The project '
+        f'addresses the real-world problem of fragmented and manual sales '
+        f'record management in small and medium-sized retail enterprises '
+        f'by providing a unified, automated, and analytically rich '
+        f'platform that covers the complete retail sales lifecycle [1].'
+    ))
+    para(doc, (
+        "The system is implemented using Flask (Python) as the backend "
+        "web framework, PostgreSQL as the relational database management "
+        "system, and plain HTML5, CSS3, and JavaScript as the frontend "
+        "technologies. The backend exposes a RESTful API consisting of "
+        "more than twenty endpoints covering authentication, customer "
+        "management, product management, sales operations, stock "
+        "tracking, invoice generation, and report analytics. Chart.js is "
+        "used for interactive data visualisation, and ReportLab is used "
+        "for server-side PDF invoice generation [2]."
+    ))
+    para(doc, (
+        "The application provides a dark-themed, responsive dashboard "
+        "displaying eight live KPI metrics including total revenue "
+        "($2,120.00), total sales count (6), average order value "
+        "($353.33), customer count (6), product count (8), low stock "
+        "items (3), out-of-stock items (2), and pending invoice count "
+        "(3). Revenue distribution across product categories "
+        "(Electronics, Home Goods, Apparel, Other) is visualised through "
+        "bar charts and doughnut charts. Customer segmentation between "
+        "Gold and Regular membership types is presented via pie charts [3]."
+    ))
+    para(doc, (
+        "The invoice module features both automatic invoice creation "
+        "upon sale completion and a standalone Invoice Builder that "
+        "auto-populates customer sales data on customer ID selection, "
+        "supports manual line item addition, computes GST at 18%, "
+        "generates live preview modals, and downloads professional PDF "
+        "invoices with company branding. All write operations are "
+        "protected by session-based admin authentication with a "
+        "30-minute automatic expiry."
+    ))
+    para(doc, (
+        "The stock management module tracks product-wise stock levels "
+        "with colour-coded status indicators (In Stock, Low Stock, Out "
+        "of Stock), provides a restocking interface, and maintains a "
+        "complete stock change history log. The reports module generates "
+        "filterable sales analytics by date range, product category, and "
+        "region, with CSV export capability."
+    ))
+    para(doc, (
+        "The project follows the Waterfall Model of the Software "
+        "Development Life Cycle (SDLC), progressing through five "
+        "sequential phases: Requirement Analysis, System Design, "
+        "Implementation (Coding), Testing, and Deployment & Maintenance. "
+        "This report documents the complete SDLC process across ten "
+        "chapters, from requirements analysis through design, "
+        "implementation, testing, and evaluation."
+    ))
+    para(doc, (
+        "Keywords: Retail Sales Analytics, Flask, PostgreSQL, RESTful "
+        "API, Invoice Generation, Stock Management, Chart.js, ReportLab, "
+        "GST, Dashboard KPI, Waterfall Model, SDLC."
+    ), italic=True, sb=8)
+    page_break(doc)
 
-    add_page_break(doc)
 
-    # ══════════════════════════════════════════════
-    #  PAGE 5: ACKNOWLEDGEMENT
-    # ══════════════════════════════════════════════
-    add_spacer(doc, 2)
-    doc.add_heading('ACKNOWLEDGEMENT', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    doc.add_paragraph(
-        'I would like to express my sincere gratitude to Prof. [Guide Name] for their invaluable '
-        'guidance, constant encouragement, and constructive criticism throughout the development '
-        'of this project. Their expertise in database management systems and web technologies '
-        'has been instrumental in shaping this project.'
-    )
-    doc.add_paragraph(
-        'I am deeply indebted to Prof. [HOD Name], Head of the Department of [Your Department], '
-        'for providing me with the necessary facilities and support to complete this project. '
-        'I also extend my heartfelt thanks to all the faculty members who have contributed '
-        'to my learning throughout the course.'
-    )
-    doc.add_paragraph(
-        'I would also like to thank my classmates and friends for their constant support, '
-        'stimulating discussions, and encouragement during the project development phase. '
-        'Their feedback and suggestions have been valuable in improving the quality of this work.'
-    )
-    doc.add_paragraph(
-        'Finally, I would like to thank my parents and family for their unwavering support, '
-        'patience, and understanding throughout my academic journey. Without their encouragement, '
-        'this project would not have been possible.'
-    )
-    add_spacer(doc, 3)
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.add_run('[Your Name]').bold = True
+# ═══════════════════════════════════════════
+#  TABLE OF CONTENTS (Updated with SDLC + Code)
+# ═══════════════════════════════════════════
 
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  PAGE 6: ABSTRACT
-    # ══════════════════════════════════════════════
-    add_spacer(doc, 2)
-    doc.add_heading('ABSTRACT', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    doc.add_paragraph(
-        'In today\'s competitive business environment, effective sales data management and '
-        'analytics are critical for making informed business decisions. This project presents '
-        '"SalesDB" — a comprehensive full-stack web application designed for managing sales '
-        'records, customer information, and product catalogs while providing real-time analytics '
-        'through an interactive dashboard.'
-    )
-    doc.add_paragraph(
-        'The system is built using a modern technology stack comprising HTML5, CSS3, and '
-        'JavaScript for the frontend, Python Flask for the backend REST API, and PostgreSQL '
-        'as the relational database management system. The application follows a star schema '
-        'data warehouse design with dimension tables (customer_dim, product_dim) and a fact '
-        'table (sales_fact) for efficient analytical queries.'
-    )
-    doc.add_paragraph(
-        'Key features of the system include: complete CRUD (Create, Read, Update, Delete) '
-        'operations for customers, products, and sales; real-time Key Performance Indicator '
-        '(KPI) cards displaying total revenue, total sales, average order value, customer '
-        'count, and product count; interactive charts including bar charts, doughnut charts, '
-        'and pie charts for data visualization using Chart.js; automatic sale amount calculation '
-        'based on product unit price and quantity; and a responsive dark-themed user interface '
-        'with smooth animations and toast notifications.'
-    )
-    doc.add_paragraph(
-        'The project demonstrates proficiency in full-stack web development, database design, '
-        'RESTful API architecture, and data visualization. It serves as a practical example '
-        'of how modern web technologies can be leveraged to create efficient business '
-        'intelligence tools.'
-    )
-    add_spacer(doc, 1)
-    p = doc.add_paragraph()
-    p.add_run('Keywords: ').bold = True
-    p.add_run('Full-Stack Development, Flask, PostgreSQL, REST API, Sales Analytics, '
-              'Dashboard, CRUD Operations, Chart.js, Data Visualization, Star Schema')
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  PAGE 7-8: TABLE OF CONTENTS
-    # ══════════════════════════════════════════════
-    doc.add_heading('TABLE OF CONTENTS', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-
-    toc_items = [
-        ('Certificate', '3'), ('Declaration', '4'), ('Acknowledgement', '5'),
-        ('Abstract', '6'), ('Table of Contents', '7'), ('List of Figures', '9'),
-        ('List of Tables', '10'),
-        ('', ''),
-        ('Chapter 1: Introduction', '11'),
-        ('    1.1 Project Overview', '11'), ('    1.2 Problem Statement', '12'),
-        ('    1.3 Objectives', '12'), ('    1.4 Scope of the Project', '13'),
-        ('    1.5 Technology Stack', '13'),
-        ('', ''),
-        ('Chapter 2: Software Development Model', '15'),
-        ('    2.1 Agile Methodology', '15'), ('    2.2 SDLC Phases', '16'),
-        ('    2.3 Why Agile for SalesDB', '17'), ('    2.4 Sprint Planning', '18'),
-        ('', ''),
-        ('Chapter 3: System Analysis', '19'),
-        ('    3.1 Feasibility Study', '19'), ('    3.2 Requirements Analysis', '20'),
-        ('    3.3 Functional Requirements', '21'),
-        ('    3.4 Non-Functional Requirements', '22'),
-        ('    3.5 Hardware & Software Requirements', '23'),
-        ('', ''),
-        ('Chapter 4: System Design', '24'),
-        ('    4.1 System Architecture', '24'), ('    4.2 Database Schema Design', '25'),
-        ('    4.3 Entity Relationship Diagram', '27'),
-        ('    4.4 Data Flow Diagrams', '28'), ('    4.5 Component Diagram', '31'),
-        ('    4.6 Sequence Diagram', '32'), ('    4.7 Deployment Diagram', '33'),
-        ('    4.8 Program Execution Flowchart', '34'),
-        ('', ''),
-        ('Chapter 5: Implementation', '35'),
-        ('    5.1 Frontend Implementation', '35'), ('    5.2 Backend Implementation', '36'),
-        ('    5.3 Database Implementation', '37'), ('    5.4 API Endpoints', '38'),
-        ('    5.5 Key Code Snippets', '39'),
-        ('', ''),
-        ('Chapter 6: Testing', '41'),
-        ('    6.1 Testing Strategy', '41'), ('    6.2 Test Cases', '42'),
-        ('    6.3 Test Results', '43'),
-        ('', ''),
-        ('Chapter 7: Results & Screenshots', '44'),
-        ('    7.1 Dashboard View', '44'), ('    7.2 Sales Management', '44'),
-        ('    7.3 Customer Management', '45'), ('    7.4 Product Management', '45'),
-        ('', ''),
-        ('Chapter 8: Conclusion & Future Scope', '46'),
-        ('    8.1 Conclusion', '46'), ('    8.2 Future Enhancements', '46'),
-        ('', ''),
-        ('References', '47'),
+def table_of_contents(doc):
+    heading(doc, "TABLE OF CONTENTS", 1)
+    blank(doc, 1)
+    toc = [
+        ("", "Declaration", "i"),
+        ("", "Certificate", "ii"),
+        ("", "Acknowledgement", "iii"),
+        ("", "Abstract", "iv"),
+        ("", "Table of Contents", "v"),
+        ("", "List of Figures", "vii"),
+        ("", "List of Tables", "viii"),
+        ("Chapter I", "INTRODUCTION", "1"),
+        ("1.1", "Background and Motivation", "1"),
+        ("1.2", "Problem Statement", "3"),
+        ("1.3", "Objectives of the Project", "4"),
+        ("1.4", "Scope of the Project", "5"),
+        ("1.5", "Organisation of the Report", "6"),
+        ("Chapter II", "LITERATURE REVIEW", "8"),
+        ("2.1", "Overview of Web-Based Sales Systems", "8"),
+        ("2.2", "Related Work and Existing Systems", "10"),
+        ("2.3", "Technologies Reviewed", "12"),
+        ("2.4", "Summary and Research Gap", "14"),
+        ("Chapter III", "SYSTEM ANALYSIS AND REQUIREMENTS", "16"),
+        ("3.1", "Feasibility Study", "16"),
+        ("3.2", "Functional Requirements", "18"),
+        ("3.3", "Non-Functional Requirements", "20"),
+        ("3.4", "Use Case Descriptions", "21"),
+        ("Chapter IV", "SDLC — WATERFALL MODEL", "23"),
+        ("4.1", "Software Development Life Cycle Overview", "23"),
+        ("4.2", "Waterfall Model Selection Justification", "25"),
+        ("4.3", "Phase 1: Requirement Analysis", "27"),
+        ("4.4", "Phase 2: System Design", "29"),
+        ("4.5", "Phase 3: Implementation (Coding)", "31"),
+        ("4.6", "Phase 4: Testing", "33"),
+        ("4.7", "Phase 5: Deployment and Maintenance", "35"),
+        ("4.8", "Waterfall Model Timeline", "37"),
+        ("Chapter V", "SYSTEM DESIGN", "38"),
+        ("5.1", "System Architecture", "38"),
+        ("5.2", "Database Design — ER Diagram", "40"),
+        ("5.3", "Database Schema", "42"),
+        ("5.4", "Data Flow Diagrams", "45"),
+        ("5.5", "API Design", "47"),
+        ("5.6", "User Interface Design", "49"),
+        ("Chapter VI", "IMPLEMENTATION", "50"),
+        ("6.1", "Technology Stack", "50"),
+        ("6.2", "Backend Implementation (Flask)", "51"),
+        ("6.3", "Database Implementation", "54"),
+        ("6.4", "Frontend Implementation", "56"),
+        ("6.5", "Invoice and PDF Generation", "58"),
+        ("Chapter VII", "TESTING", "60"),
+        ("7.1", "Testing Strategy", "60"),
+        ("7.2", "Unit Testing", "61"),
+        ("7.3", "Integration Testing", "63"),
+        ("7.4", "User Acceptance Testing", "65"),
+        ("Chapter VIII", "RESULTS AND DISCUSSION", "66"),
+        ("8.1", "Dashboard and KPI Results", "66"),
+        ("8.2", "Sales and Invoice Results", "68"),
+        ("8.3", "Stock Management Results", "70"),
+        ("8.4", "Reports Module Results", "71"),
+        ("Chapter IX", "SOURCE CODE", "72"),
+        ("9.1", "Backend Code (app.py)", "72"),
+        ("9.2", "Frontend Code (script.js)", "76"),
+        ("9.3", "Stylesheet (styles.css)", "79"),
+        ("9.4", "HTML Structure (index.html)", "81"),
+        ("Chapter X", "CONCLUSION AND FUTURE WORK", "83"),
+        ("10.1", "Conclusion", "83"),
+        ("10.2", "Limitations", "84"),
+        ("10.3", "Future Scope", "85"),
+        ("", "REFERENCES", "87"),
     ]
-
-    for title, page in toc_items:
-        if not title:
-            doc.add_paragraph('')
-            continue
+    for num, title, page in toc:
         p = doc.add_paragraph()
-        if title.startswith('Chapter') or title in ['Certificate', 'Declaration',
-                'Acknowledgement', 'Abstract', 'Table of Contents',
-                'List of Figures', 'List of Tables', 'References']:
-            run = p.add_run(title)
-            run.bold = True
-            run.font.size = Pt(11)
-        else:
-            run = p.add_run(title)
-            run.font.size = Pt(10)
-
-        tab_run = p.add_run('\t' * 3 + '...... ' + page)
-        tab_run.font.size = Pt(10)
-        tab_run.font.color.rgb = RGBColor(100, 116, 139)
-
-    add_page_break(doc)
-
-    # ── List of Figures ──────────────────────────
-    doc.add_heading('LIST OF FIGURES', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    figures = [
-        ('Figure 1.1', 'Technology Stack Diagram', '14'),
-        ('Figure 2.1', 'Agile SDLC Model', '16'),
-        ('Figure 4.1', 'System Architecture Diagram', '24'),
-        ('Figure 4.2', 'Database Schema Diagram', '26'),
-        ('Figure 4.3', 'Entity Relationship Diagram', '27'),
-        ('Figure 4.4', 'DFD Level 0 — Context Diagram', '28'),
-        ('Figure 4.5', 'DFD Level 1', '29'),
-        ('Figure 4.6', 'CRUD Operations Flowchart', '30'),
-        ('Figure 4.7', 'Component Diagram', '31'),
-        ('Figure 4.8', 'Sequence Diagram — Add Sale', '32'),
-        ('Figure 4.9', 'Deployment Diagram', '33'),
-        ('Figure 4.10', 'Program Execution Flowchart', '34'),
-        ('Figure 7.1', 'Dashboard Charts & KPIs', '44'),
-    ]
-    for fig_no, caption, page in figures:
-        p = doc.add_paragraph()
-        run = p.add_run(f'{fig_no}: ')
-        run.bold = True
-        run.font.size = Pt(10)
-        run2 = p.add_run(caption)
-        run2.font.size = Pt(10)
-        tab_run = p.add_run(f'\t\t...... {page}')
-        tab_run.font.size = Pt(10)
-        tab_run.font.color.rgb = RGBColor(100, 116, 139)
-
-    add_page_break(doc)
-
-    # ── List of Tables ───────────────────────────
-    doc.add_heading('LIST OF TABLES', level=1).alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_spacer(doc, 1)
-    tables_list = [
-        ('Table 1.1', 'Technology Stack Overview', '14'),
-        ('Table 3.1', 'Functional Requirements', '21'),
-        ('Table 3.2', 'Non-Functional Requirements', '22'),
-        ('Table 3.3', 'Hardware Requirements', '23'),
-        ('Table 3.4', 'Software Requirements', '23'),
-        ('Table 4.1', 'customer_dim Schema', '25'),
-        ('Table 4.2', 'product_dim Schema', '26'),
-        ('Table 4.3', 'sales_fact Schema', '26'),
-        ('Table 5.1', 'API Endpoints Summary', '38'),
-        ('Table 6.1', 'Test Cases — Customers', '42'),
-        ('Table 6.2', 'Test Cases — Products', '42'),
-        ('Table 6.3', 'Test Cases — Sales', '43'),
-        ('Table 6.4', 'Test Results Summary', '43'),
-    ]
-    for tbl_no, caption, page in tables_list:
-        p = doc.add_paragraph()
-        run = p.add_run(f'{tbl_no}: ')
-        run.bold = True
-        run.font.size = Pt(10)
-        run2 = p.add_run(caption)
-        run2.font.size = Pt(10)
-        tab_run = p.add_run(f'\t\t...... {page}')
-        tab_run.font.size = Pt(10)
-        tab_run.font.color.rgb = RGBColor(100, 116, 139)
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 1: INTRODUCTION (Pages 11-14)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 1: Introduction', level=1)
-
-    doc.add_heading('1.1 Project Overview', level=2)
-    doc.add_paragraph(
-        'SalesDB is a full-stack web application designed to provide businesses with a comprehensive '
-        'solution for managing their sales data, customer information, and product catalogs. The '
-        'application features an interactive dashboard with real-time analytics, enabling users to '
-        'gain actionable insights from their sales data through visually appealing charts and '
-        'Key Performance Indicators (KPIs).'
-    )
-    doc.add_paragraph(
-        'The project addresses the growing need for small to medium-sized businesses to have '
-        'accessible, user-friendly tools for tracking sales performance without the complexity '
-        'and cost of enterprise-level Business Intelligence (BI) solutions. SalesDB provides '
-        'a lightweight yet powerful alternative that can be deployed locally or on a server '
-        'with minimal configuration.'
-    )
-    doc.add_paragraph(
-        'The application is built on a three-tier architecture consisting of a presentation layer '
-        '(HTML/CSS/JavaScript), a business logic layer (Python Flask API), and a data layer '
-        '(PostgreSQL database). This separation of concerns ensures maintainability, scalability, '
-        'and ease of testing. The frontend communicates with the backend exclusively through '
-        'RESTful API endpoints, making the system modular and extensible.'
-    )
-    doc.add_paragraph(
-        'The user interface follows a modern dark-theme design inspired by professional dashboard '
-        'applications, featuring a midnight blue color palette, smooth animations, responsive '
-        'layout, and intuitive navigation through a persistent sidebar. The dashboard provides '
-        'at-a-glance metrics and interactive visualizations that update in real-time as data '
-        'is added, modified, or removed from the system.'
-    )
-
-    doc.add_heading('1.2 Problem Statement', level=2)
-    doc.add_paragraph(
-        'Many small and medium-sized businesses face challenges in effectively managing and '
-        'analyzing their sales data. Common problems include:'
-    )
-    problems = [
-        'Lack of centralized data management — Sales records are scattered across spreadsheets, '
-        'notebooks, and disconnected systems, leading to data inconsistency and loss.',
-        'No real-time analytics — Business owners cannot quickly assess performance metrics '
-        'like total revenue, average order value, or category-wise sales distribution.',
-        'Manual calculations — Computing totals, averages, and trends requires tedious manual '
-        'effort and is prone to human error.',
-        'Poor data visualization — Raw numbers in spreadsheets do not provide intuitive insights '
-        'compared to charts and graphical dashboards.',
-        'Inability to track customer segments — Without proper categorization (e.g., Gold vs '
-        'Regular members), businesses miss opportunities for targeted marketing.',
-        'No audit trail — Difficulty in tracking who bought what, when, and for how much.',
-    ]
-    for prob in problems:
-        p = doc.add_paragraph(prob, style='List Bullet')
-
-    doc.add_heading('1.3 Objectives', level=2)
-    doc.add_paragraph(
-        'The primary objectives of the SalesDB project are as follows:'
-    )
-    objectives = [
-        'To design and develop a full-stack web application for comprehensive sales data management '
-        'including customers, products, and sales transactions.',
-        'To implement CRUD (Create, Read, Update, Delete) operations for all entities with proper '
-        'validation, error handling, and user feedback.',
-        'To create an interactive analytics dashboard with real-time KPI cards and data visualization '
-        'using bar charts, doughnut charts, and pie charts.',
-        'To design an efficient database schema following the star schema pattern with dimension '
-        'tables and a fact table for optimized analytical queries.',
-        'To develop a RESTful API using Flask that serves as the middleware between the frontend '
-        'and the PostgreSQL database.',
-        'To implement automatic sale amount calculation based on product unit price and quantity '
-        'to reduce manual entry errors.',
-        'To provide a responsive, modern user interface with a dark-blue theme that works across '
-        'different screen sizes and devices.',
-        'To ensure data integrity through foreign key constraints, cascading deletes, and '
-        'proper transaction management.',
-    ]
-    for obj in objectives:
-        p = doc.add_paragraph(obj, style='List Bullet')
-
-    doc.add_heading('1.4 Scope of the Project', level=2)
-    doc.add_paragraph(
-        'The scope of SalesDB encompasses the following functional areas:'
-    )
-    doc.add_paragraph(
-        'Customer Management: The system allows adding, viewing, editing, and deleting customer '
-        'records with fields including first name, last name, city, mobile number, email, '
-        'region (East/West/North/South), and member type (Gold/Regular). Each customer is '
-        'assigned a unique auto-incrementing ID.'
-    )
-    doc.add_paragraph(
-        'Product Management: Users can manage a product catalog with product name, category '
-        '(Electronics, Home Goods, Apparel, Other), and unit price. Products can be created, '
-        'updated, and deleted, with cascading deletion of associated sales records.'
-    )
-    doc.add_paragraph(
-        'Sales Management: The sales module enables recording individual sale transactions by '
-        'selecting a customer, product, date, and quantity. The total amount is automatically '
-        'calculated as unit_price × quantity. Sales can be viewed in a comprehensive table '
-        'showing all relevant details and can be deleted individually.'
-    )
-    doc.add_paragraph(
-        'Analytics Dashboard: The dashboard provides five KPI cards (Total Revenue, Total Sales, '
-        'Average Order Value, Customer Count, Product Count) and three interactive charts '
-        '(Revenue by Category bar chart, Sales Distribution doughnut chart, Customer Segments '
-        'pie chart) that update in real-time.'
-    )
-
-    doc.add_heading('1.5 Technology Stack', level=2)
-    doc.add_paragraph(
-        'SalesDB utilizes a modern technology stack carefully chosen for reliability, '
-        'performance, and developer productivity. The following table summarizes the '
-        'technologies used in each layer of the application:'
-    )
-
-    add_styled_table(doc,
-        ['Layer', 'Technology', 'Version', 'Purpose'],
-        [
-            ['Frontend', 'HTML5', '5', 'Page structure & semantics'],
-            ['Frontend', 'CSS3', '3', 'Styling, animations, responsive design'],
-            ['Frontend', 'JavaScript', 'ES6+', 'DOM manipulation, API calls, interactivity'],
-            ['Frontend', 'Chart.js', '4.4.1', 'Bar, doughnut, and pie charts'],
-            ['Frontend', 'Google Fonts', '—', 'Syne & JetBrains Mono typography'],
-            ['Backend', 'Python', '3.x', 'Server-side programming language'],
-            ['Backend', 'Flask', '3.x', 'Lightweight WSGI web framework'],
-            ['Backend', 'flask-cors', '4.x', 'Cross-Origin Resource Sharing'],
-            ['Backend', 'psycopg2', '2.9.x', 'PostgreSQL database adapter'],
-            ['Database', 'PostgreSQL', '16.x', 'Relational database management system'],
-        ]
-    )
-    doc.add_paragraph('\nTable 1.1: Technology Stack Overview', style='Caption') if 'Caption' in [s.name for s in doc.styles] else doc.add_paragraph('\nTable 1.1: Technology Stack Overview')
-
-    add_spacer(doc, 1)
-    doc.add_paragraph('Figure 1.1: Technology Stack Diagram')
-    doc.add_picture(tech_stack_img, width=Inches(5.5))
-    last_paragraph = doc.paragraphs[-1]
-    last_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 2: SOFTWARE DEVELOPMENT MODEL (Pages 15-18)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 2: Software Development Model', level=1)
-
-    doc.add_heading('2.1 Agile Methodology', level=2)
-    doc.add_paragraph(
-        'The SalesDB project was developed following the Agile Software Development Methodology. '
-        'Agile is an iterative approach to software development that emphasizes flexibility, '
-        'continuous improvement, and rapid delivery of working software. Unlike traditional '
-        'waterfall models that follow a linear sequential approach, Agile allows for adaptive '
-        'planning and evolutionary development.'
-    )
-    doc.add_paragraph(
-        'The core principles of Agile that guided this project include:'
-    )
-    agile_principles = [
-        'Individuals and interactions over processes and tools — Direct communication between '
-        'the developer and the project guide ensured quick resolution of design decisions.',
-        'Working software over comprehensive documentation — Each sprint produced a functional '
-        'increment of the application that could be demonstrated and tested.',
-        'Customer collaboration over contract negotiation — Regular feedback sessions helped '
-        'refine requirements and user interface design.',
-        'Responding to change over following a plan — The addition of features like auto-calculation '
-        'of sale amounts and member type categorization were incorporated based on iterative feedback.',
-    ]
-    for principle in agile_principles:
-        doc.add_paragraph(principle, style='List Bullet')
-
-    add_spacer(doc, 1)
-    doc.add_paragraph('Figure 2.1: Agile SDLC Model')
-    doc.add_picture(sdlc_img, width=Inches(4.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    doc.add_heading('2.2 SDLC Phases Applied to SalesDB', level=2)
-
-    phases = [
-        ('Phase 1 — Planning (Week 1)', 
-         'During the planning phase, the project scope was defined, and the core features were '
-         'identified. The decision to use Flask + PostgreSQL was made based on the requirements '
-         'for a lightweight yet powerful backend with strong relational database support. '
-         'The star schema design pattern was selected for the database to optimize analytics queries.'),
-        ('Phase 2 — Analysis (Week 2)',
-         'Requirements were gathered and categorized into functional and non-functional requirements. '
-         'The entities (Customer, Product, Sale) were identified along with their attributes and '
-         'relationships. User stories were created for each CRUD operation and dashboard feature.'),
-        ('Phase 3 — Design (Week 3)',
-         'System architecture, database schema, ER diagrams, and DFDs were created. The UI '
-         'wireframes were sketched with the dark-blue theme inspired by modern dashboard designs. '
-         'API endpoints were planned with their HTTP methods, request/response formats.'),
-        ('Phase 4 — Implementation (Week 4-6)',
-         'The core application was developed iteratively. Sprint 1 focused on database setup and '
-         'basic CRUD APIs. Sprint 2 added the frontend with navigation and forms. Sprint 3 '
-         'integrated Chart.js for dashboard analytics. Sprint 4 added edit functionality and '
-         'auto-calculation features.'),
-        ('Phase 5 — Testing (Week 7)',
-         'Comprehensive testing was performed including unit testing of API endpoints, integration '
-         'testing of frontend-backend communication, and user acceptance testing of the complete '
-         'workflow from data entry to dashboard visualization.'),
-        ('Phase 6 — Deployment (Week 8)',
-         'The application was finalized, documented, and prepared for deployment. The setup '
-         'endpoint was created to allow automatic database schema creation, making deployment '
-         'as simple as running a single Python command.'),
-    ]
-
-    for title, description in phases:
-        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.line_spacing = 1.5
+        is_ch = num.startswith("Chapter") or (not num and title.isupper())
+        if num:
+            run = p.add_run(f"{num}    ")
+            sf(run, FONT, BODY, bold=is_ch)
         run = p.add_run(title)
-        run.bold = True
-        run.font.size = Pt(11)
-        doc.add_paragraph(description)
+        sf(run, FONT, BODY, bold=is_ch)
+        run = p.add_run(f"\t{page}")
+        sf(run, FONT, BODY)
+        p.paragraph_format.tab_stops.add_tab_stop(
+            Cm(14), alignment=WD_ALIGN_PARAGRAPH.RIGHT)
 
-    doc.add_heading('2.3 Why Agile for SalesDB', level=2)
-    doc.add_paragraph(
-        'The Agile methodology was chosen for SalesDB for several compelling reasons. First, '
-        'the project requirements evolved during development — features like unit price management, '
-        'auto-calculation of sale amounts, and member type categorization were added based on '
-        'iterative feedback. A rigid waterfall approach would have made incorporating these '
-        'changes difficult and costly.'
-    )
-    doc.add_paragraph(
-        'Second, the iterative nature of Agile allowed for continuous integration and testing. '
-        'Each sprint delivered a working increment that could be tested and validated, reducing '
-        'the risk of discovering major issues late in the development cycle. This approach '
-        'ensured that the final product met all requirements and quality standards.'
-    )
-    doc.add_paragraph(
-        'Third, the small team size (individual project) aligned well with Agile principles. '
-        'Without the overhead of large team coordination, the developer could focus on rapid '
-        'prototyping, immediate feedback incorporation, and continuous improvement of both '
-        'code quality and user experience.'
-    )
+    page_break(doc)
 
-    doc.add_heading('2.4 Sprint Planning', level=2)
-    add_styled_table(doc,
-        ['Sprint', 'Duration', 'Deliverables', 'Status'],
-        [
-            ['Sprint 1', 'Week 4', 'Database schema, basic CRUD APIs', 'Completed'],
-            ['Sprint 2', 'Week 5', 'Frontend UI, navigation, forms', 'Completed'],
-            ['Sprint 3', 'Week 5-6', 'Dashboard, KPIs, charts', 'Completed'],
-            ['Sprint 4', 'Week 6', 'Edit/Update, auto-calculation', 'Completed'],
-            ['Sprint 5', 'Week 7', 'Testing, bug fixes, polish', 'Completed'],
-            ['Sprint 6', 'Week 8', 'Documentation, deployment', 'Completed'],
-        ]
-    )
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 3: SYSTEM ANALYSIS (Pages 19-23)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 3: System Analysis', level=1)
-
-    doc.add_heading('3.1 Feasibility Study', level=2)
-
-    doc.add_heading('3.1.1 Technical Feasibility', level=3)
-    doc.add_paragraph(
-        'The technical feasibility of SalesDB was assessed by evaluating the availability and '
-        'maturity of the required technologies. Python and Flask are well-established technologies '
-        'with extensive documentation and community support. PostgreSQL is a robust, enterprise-grade '
-        'database system that is freely available under an open-source license. HTML5, CSS3, and '
-        'JavaScript are universal web technologies supported by all modern browsers. Chart.js '
-        'is a widely-used, well-maintained charting library. All technologies are compatible '
-        'with standard development environments and do not require specialized hardware.'
-    )
-
-    doc.add_heading('3.1.2 Economic Feasibility', level=3)
-    doc.add_paragraph(
-        'The project uses entirely open-source and free technologies, making it economically '
-        'viable for educational purposes and small business deployment. There are no licensing '
-        'costs for Python, Flask, PostgreSQL, or Chart.js. The application can run on standard '
-        'hardware (any computer with Python installed) without requiring cloud infrastructure '
-        'or paid services. The total cost of development is limited to developer time.'
-    )
-
-    doc.add_heading('3.1.3 Operational Feasibility', level=3)
-    doc.add_paragraph(
-        'The application is designed with usability as a primary concern. The intuitive user '
-        'interface with clear labels, form validation, toast notifications, and visual feedback '
-        'makes it accessible to users with basic computer literacy. The single-page application '
-        'design eliminates page reloads, providing a smooth and responsive user experience. '
-        'The automated database setup endpoint simplifies deployment to a single command.'
-    )
-
-    doc.add_heading('3.2 Requirements Analysis', level=2)
-    doc.add_paragraph(
-        'Requirements were gathered through analysis of common sales management workflows and '
-        'the identification of key pain points in existing manual processes. The requirements '
-        'were categorized into functional requirements (what the system should do) and '
-        'non-functional requirements (how the system should perform).'
-    )
-    doc.add_paragraph(
-        'The analysis revealed that the primary users of the system would be small business '
-        'owners or sales managers who need to: (1) maintain a database of customers with '
-        'contact information and membership status, (2) manage a product catalog with pricing, '
-        '(3) record sales transactions with automatic total calculation, and (4) view analytics '
-        'and performance metrics through a visual dashboard.'
-    )
-
-    doc.add_heading('3.3 Functional Requirements', level=2)
-    add_styled_table(doc,
-        ['ID', 'Module', 'Requirement', 'Priority'],
-        [
-            ['FR-01', 'Customers', 'Add new customer with all details', 'High'],
-            ['FR-02', 'Customers', 'View all customers in a table', 'High'],
-            ['FR-03', 'Customers', 'Edit existing customer information', 'High'],
-            ['FR-04', 'Customers', 'Delete customer (cascade sales)', 'High'],
-            ['FR-05', 'Products', 'Add new product with name, category, price', 'High'],
-            ['FR-06', 'Products', 'View all products in a table', 'High'],
-            ['FR-07', 'Products', 'Edit existing product details', 'High'],
-            ['FR-08', 'Products', 'Delete product (cascade sales)', 'High'],
-            ['FR-09', 'Sales', 'Add sale with auto-calculated amount', 'High'],
-            ['FR-10', 'Sales', 'View all sales with full details', 'High'],
-            ['FR-11', 'Sales', 'Delete individual sale records', 'Medium'],
-            ['FR-12', 'Dashboard', 'Display 5 KPI cards', 'High'],
-            ['FR-13', 'Dashboard', 'Show revenue by category bar chart', 'High'],
-            ['FR-14', 'Dashboard', 'Show sales distribution doughnut chart', 'Medium'],
-            ['FR-15', 'Dashboard', 'Show customer segments pie chart', 'Medium'],
-            ['FR-16', 'System', 'Auto-setup database schema', 'High'],
-            ['FR-17', 'System', 'Health check endpoint', 'Low'],
-        ]
-    )
-    doc.add_paragraph('\nTable 3.1: Functional Requirements')
-
-    doc.add_heading('3.4 Non-Functional Requirements', level=2)
-    add_styled_table(doc,
-        ['ID', 'Category', 'Requirement'],
-        [
-            ['NFR-01', 'Performance', 'API response time < 500ms for all endpoints'],
-            ['NFR-02', 'Usability', 'Intuitive UI with < 3 clicks for any operation'],
-            ['NFR-03', 'Reliability', 'Graceful error handling with user-friendly messages'],
-            ['NFR-04', 'Security', 'SQL injection prevention via parameterized queries'],
-            ['NFR-05', 'Scalability', 'Modular architecture supporting future extensions'],
-            ['NFR-06', 'Maintainability', 'Separated CSS, JS, HTML for clean code structure'],
-            ['NFR-07', 'Compatibility', 'Works on Chrome, Firefox, Edge, Safari'],
-            ['NFR-08', 'Responsiveness', 'Adapts to screen widths from 320px to 1920px'],
-        ]
-    )
-    doc.add_paragraph('\nTable 3.2: Non-Functional Requirements')
-
-    doc.add_heading('3.5 Hardware & Software Requirements', level=2)
-
-    doc.add_heading('3.5.1 Hardware Requirements', level=3)
-    add_styled_table(doc,
-        ['Component', 'Minimum', 'Recommended'],
-        [
-            ['Processor', 'Intel i3 / AMD Ryzen 3', 'Intel i5 / AMD Ryzen 5'],
-            ['RAM', '4 GB', '8 GB'],
-            ['Storage', '500 MB free space', '1 GB free space'],
-            ['Display', '1366 × 768', '1920 × 1080'],
-            ['Network', 'Localhost (no network needed)', 'LAN for multi-user access'],
-        ]
-    )
-    doc.add_paragraph('\nTable 3.3: Hardware Requirements')
-
-    doc.add_heading('3.5.2 Software Requirements', level=3)
-    add_styled_table(doc,
-        ['Software', 'Version', 'Purpose'],
-        [
-            ['Operating System', 'Windows 10+ / Linux / macOS', 'Development & deployment'],
-            ['Python', '3.8+', 'Backend runtime'],
-            ['PostgreSQL', '12+', 'Database server'],
-            ['Web Browser', 'Chrome 90+ / Firefox 88+', 'Frontend rendering'],
-            ['pip', 'Latest', 'Python package manager'],
-            ['Git', 'Latest (optional)', 'Version control'],
-        ]
-    )
-    doc.add_paragraph('\nTable 3.4: Software Requirements')
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 4: SYSTEM DESIGN (Pages 24-34)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 4: System Design', level=1)
-
-    doc.add_heading('4.1 System Architecture', level=2)
-    doc.add_paragraph(
-        'SalesDB follows a three-tier client-server architecture that separates the application '
-        'into three logical layers: the Presentation Layer (frontend), the Application Layer '
-        '(backend API), and the Data Layer (database). This architectural pattern promotes '
-        'separation of concerns, making each layer independently developable, testable, and deployable.'
-    )
-    doc.add_paragraph(
-        'The Presentation Layer consists of HTML, CSS, and JavaScript files served by the Flask '
-        'server. The browser renders the user interface and handles user interactions. When a '
-        'user performs an action (e.g., adding a customer), JavaScript sends an asynchronous '
-        'HTTP request (using the Fetch API) to the Application Layer.'
-    )
-    doc.add_paragraph(
-        'The Application Layer is a Python Flask application that exposes RESTful API endpoints. '
-        'It receives HTTP requests, validates input data, performs business logic, communicates '
-        'with the database through psycopg2, and returns JSON responses. Flask-CORS is used to '
-        'handle Cross-Origin Resource Sharing when the frontend is served from a different origin.'
-    )
-    doc.add_paragraph(
-        'The Data Layer is a PostgreSQL database that stores all persistent data in three tables: '
-        'customer_dim, product_dim, and sales_fact. The database enforces data integrity through '
-        'primary keys, foreign keys with CASCADE delete rules, NOT NULL constraints, and '
-        'appropriate data types.'
-    )
-
-    doc.add_paragraph('\nFigure 4.1: System Architecture Diagram')
-    doc.add_picture(arch_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    doc.add_heading('4.2 Database Schema Design', level=2)
-    doc.add_paragraph(
-        'The database follows a star schema design commonly used in data warehouse applications. '
-        'The central fact table (sales_fact) stores measurable, quantitative data about sales '
-        'transactions, while the dimension tables (customer_dim, product_dim) store descriptive '
-        'attributes that provide context to the facts. This design optimizes analytical queries '
-        'by minimizing the number of joins required.'
-    )
-
-    doc.add_heading('4.2.1 customer_dim Table', level=3)
-    add_styled_table(doc,
-        ['Column', 'Data Type', 'Constraints', 'Description'],
-        [
-            ['customer_id', 'SERIAL', 'PRIMARY KEY', 'Auto-incrementing unique identifier'],
-            ['first_name', 'VARCHAR(50)', 'NOT NULL', 'Customer first name'],
-            ['last_name', 'VARCHAR(50)', 'NOT NULL', 'Customer last name'],
-            ['city', 'VARCHAR(50)', 'NULLABLE', 'City of residence'],
-            ['mobile_no', 'VARCHAR(20)', 'NULLABLE', 'Mobile phone number'],
-            ['email', 'VARCHAR(100)', 'NULLABLE', 'Email address'],
-            ['region', 'VARCHAR(20)', 'NULLABLE', 'Geographic region (East/West/North/South)'],
-            ['member_type', 'VARCHAR(20)', 'DEFAULT Regular', 'Membership tier (Gold/Regular)'],
-        ]
-    )
-    doc.add_paragraph('\nTable 4.1: customer_dim Schema')
-
-    doc.add_heading('4.2.2 product_dim Table', level=3)
-    add_styled_table(doc,
-        ['Column', 'Data Type', 'Constraints', 'Description'],
-        [
-            ['product_id', 'SERIAL', 'PRIMARY KEY', 'Auto-incrementing unique identifier'],
-            ['product_name', 'VARCHAR(100)', 'NOT NULL', 'Name of the product'],
-            ['category', 'VARCHAR(50)', 'NULLABLE', 'Product category'],
-            ['unit_price', 'NUMERIC(10,2)', 'DEFAULT 0', 'Price per unit in dollars'],
-        ]
-    )
-    doc.add_paragraph('\nTable 4.2: product_dim Schema')
-
-    doc.add_heading('4.2.3 sales_fact Table', level=3)
-    add_styled_table(doc,
-        ['Column', 'Data Type', 'Constraints', 'Description'],
-        [
-            ['sale_id', 'SERIAL', 'PRIMARY KEY', 'Auto-incrementing unique identifier'],
-            ['customer_id', 'INTEGER', 'FK → customer_dim ON DELETE CASCADE', 'Reference to customer'],
-            ['product_id', 'INTEGER', 'FK → product_dim ON DELETE CASCADE', 'Reference to product'],
-            ['sale_date', 'DATE', 'NOT NULL', 'Date of the sale'],
-            ['quantity', 'INTEGER', 'NOT NULL', 'Number of units sold'],
-            ['sale_amount', 'NUMERIC(10,2)', 'NOT NULL', 'Total = unit_price × quantity'],
-        ]
-    )
-    doc.add_paragraph('\nTable 4.3: sales_fact Schema')
-
-    add_page_break(doc)
-
-    doc.add_heading('4.3 Entity Relationship Diagram', level=2)
-    doc.add_paragraph(
-        'The Entity Relationship (ER) Diagram illustrates the relationships between the three '
-        'main entities in the SalesDB system. The diagram shows primary keys (PK) highlighted '
-        'in yellow, foreign keys (FK) in red, and regular attributes in gray.'
-    )
-    doc.add_paragraph(
-        'Key relationships: A customer can have many sales (1:N relationship from customer_dim '
-        'to sales_fact). A product can appear in many sales (1:N relationship from product_dim '
-        'to sales_fact). Each sale belongs to exactly one customer and one product.'
-    )
-
-    doc.add_paragraph('\nFigure 4.3: Entity Relationship Diagram')
-    doc.add_picture(er_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    doc.add_heading('4.4 Data Flow Diagrams', level=2)
-
-    doc.add_heading('4.4.1 DFD Level 0 — Context Diagram', level=3)
-    doc.add_paragraph(
-        'The context diagram shows the SalesDB system as a single process interacting with '
-        'two external entities: the User (admin) who sends CRUD requests and receives reports, '
-        'and the PostgreSQL database that receives SQL queries and returns result sets.'
-    )
-    doc.add_paragraph('\nFigure 4.4: DFD Level 0 — Context Diagram')
-    doc.add_picture(dfd0_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    doc.add_heading('4.4.2 DFD Level 1', level=3)
-    doc.add_paragraph(
-        'The Level 1 DFD decomposes the SalesDB system into four major processes: '
-        '(1.0) Manage Customers, (2.0) Manage Products, (3.0) Manage Sales, and '
-        '(4.0) Generate Analytics. Each process interacts with its respective data store '
-        'and receives input from the User entity.'
-    )
-    doc.add_paragraph('\nFigure 4.5: DFD Level 1')
-    doc.add_picture(dfd1_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    doc.add_heading('4.4.3 CRUD Operations Flow', level=3)
-    doc.add_paragraph(
-        'The following diagram shows how each CRUD operation flows from the user interface '
-        'through the API to the database, detailing the HTTP method, SQL operation, and '
-        'response format for each operation type.'
-    )
-    doc.add_paragraph('\nFigure 4.6: CRUD Operations Flowchart')
-    doc.add_picture(crud_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    doc.add_heading('4.5 Component Diagram', level=2)
-    doc.add_paragraph(
-        'The component diagram shows the internal structure of SalesDB organized into three '
-        'layers. The Presentation Layer contains the HTML, CSS, JavaScript, and Chart.js files. '
-        'The Application Layer contains the Flask app, routing logic, and database driver. '
-        'The Data Layer contains the three database tables.'
-    )
-    doc.add_paragraph('\nFigure 4.7: Component Diagram')
-    doc.add_picture(comp_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    doc.add_heading('4.6 Sequence Diagram', level=2)
-    doc.add_paragraph(
-        'The sequence diagram below illustrates the interaction between the User, Frontend (JS), '
-        'Flask API, and PostgreSQL when adding a new sale. It shows the complete request-response '
-        'cycle from form submission to UI update.'
-    )
-    doc.add_paragraph('\nFigure 4.8: Sequence Diagram — Add Sale')
-    doc.add_picture(seq_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    doc.add_heading('4.7 Deployment Diagram', level=2)
-    doc.add_paragraph(
-        'The deployment diagram shows the physical distribution of the application components '
-        'across three nodes: the Client Machine (running the browser), the Application Server '
-        '(running Flask on port 5000), and the Database Server (running PostgreSQL on port 5432). '
-        'In a local development setup, all three nodes may reside on the same physical machine.'
-    )
-    doc.add_paragraph('\nFigure 4.9: Deployment Diagram')
-    doc.add_picture(deploy_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    doc.add_heading('4.8 Program Execution Flowchart', level=2)
-    doc.add_paragraph(
-        'The following flowchart shows the complete execution flow of the SalesDB application '
-        'from server startup to user interaction. The flow includes server initialization, '
-        'page loading, dashboard rendering, user actions (CRUD), API communication, database '
-        'operations, and UI updates with toast notifications.'
-    )
-    doc.add_paragraph('\nFigure 4.10: Program Execution Flowchart')
-    doc.add_picture(flow_img, width=Inches(4))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 5: IMPLEMENTATION (Pages 35-40)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 5: Implementation', level=1)
-
-    doc.add_heading('5.1 Frontend Implementation', level=2)
-    doc.add_paragraph(
-        'The frontend is implemented as a Single Page Application (SPA) using vanilla JavaScript '
-        'without any framework. The HTML file (index.html) defines the structure of the entire '
-        'application, including the sidebar navigation, top bar, and four sections (Dashboard, '
-        'Sales, Customers, Products). Section visibility is controlled via CSS classes and '
-        'JavaScript event handlers.'
-    )
-    doc.add_paragraph(
-        'The CSS file (styles.css) implements the midnight blue dark theme using CSS custom '
-        'properties (variables) defined in the :root selector. This approach allows for easy '
-        'theme customization by modifying a few variable values. The design uses a radial gradient '
-        'background, semi-transparent surfaces with backdrop-filter blur effects, and consistent '
-        'border-radius values for a modern, professional appearance.'
-    )
-    doc.add_paragraph(
-        'Key frontend features include:'
-    )
-    features = [
-        'Navigation: Click handlers on sidebar items toggle section visibility using CSS class manipulation.',
-        'Toast Notifications: A fixed-position element that slides in from the bottom-right with success/error styling.',
-        'Form Handling: Forms support both Add and Edit modes using a hidden input field to track the editing ID.',
-        'Auto-Calculation: When a product is selected or quantity changed, the sale amount is automatically computed.',
-        'Responsive Design: CSS media queries adjust the layout for screens smaller than 900px.',
-        'Charts: Chart.js instances are created and destroyed on each data refresh to prevent memory leaks.',
+    # List of Figures
+    heading(doc, "LIST OF FIGURES", 1)
+    blank(doc, 1)
+    figures = [
+        ("1.1", "High-Level Block Diagram"),
+        ("3.1", "Use Case Diagram — Admin Actor"),
+        ("3.2", "Use Case Diagram — Viewer Actor"),
+        ("4.1", "Waterfall Model Diagram"),
+        ("4.2", "Waterfall Phase Timeline — Gantt Chart"),
+        ("5.1", "System Architecture Diagram"),
+        ("5.2", "Entity Relationship Diagram"),
+        ("5.3", "DFD Level 0 — Context Diagram"),
+        ("5.4", "DFD Level 1 — Process Decomposition"),
+        ("5.5", "API Endpoint Flow Diagram"),
+        ("6.1", "Dashboard KPI Screenshot"),
+        ("6.2", "Sales Management Screenshot"),
+        ("6.3", "Customer Management Screenshot"),
+        ("6.4", "Products Management Screenshot"),
+        ("6.5", "Stocks Module Screenshot"),
+        ("6.6", "Invoice Builder Screenshot"),
+        ("6.7", "Reports Module Screenshot"),
+        ("6.8", "Login Authentication Screenshot"),
     ]
-    for f in features:
-        doc.add_paragraph(f, style='List Bullet')
-
-    doc.add_heading('5.2 Backend Implementation', level=2)
-    doc.add_paragraph(
-        'The backend is a Python Flask application (app.py) that serves both the static frontend '
-        'files and the RESTful API endpoints. The application uses psycopg2 for PostgreSQL '
-        'connectivity with RealDictCursor for dictionary-based result rows, making JSON '
-        'serialization straightforward.'
-    )
-    doc.add_paragraph(
-        'Key backend design patterns include:'
-    )
-    patterns = [
-        'Connection Management: Each request creates a new database connection and closes it after use. '
-        'This simple approach is suitable for the expected load of this application.',
-        'Error Handling: All endpoints are wrapped in try-except blocks with appropriate HTTP status codes '
-        '(400 for validation errors, 404 for not found, 500 for server errors).',
-        'Input Validation: Required fields are checked before database operations. Missing fields return '
-        'descriptive error messages.',
-        'CORS Support: flask-cors is applied globally to allow cross-origin requests during development.',
-        'Static File Serving: Three dedicated routes serve index.html, styles.css, and script.js.',
-        'Schema Migration: The /api/setup endpoint uses DO $$ blocks to safely add columns to existing tables.',
-    ]
-    for pat in patterns:
-        doc.add_paragraph(pat, style='List Bullet')
-
-    doc.add_heading('5.3 Database Implementation', level=2)
-    doc.add_paragraph(
-        'The PostgreSQL database is structured using a star schema with two dimension tables '
-        'and one fact table. The schema is created automatically via the /api/setup POST endpoint, '
-        'which uses CREATE TABLE IF NOT EXISTS for idempotent table creation and ALTER TABLE '
-        'wrapped in conditional checks for adding new columns to existing tables.'
-    )
-    doc.add_paragraph(
-        'Key database design decisions include:'
-    )
-    db_decisions = [
-        'SERIAL primary keys for automatic ID generation without application-level management.',
-        'ON DELETE CASCADE foreign keys to maintain referential integrity when customers or products are deleted.',
-        'NUMERIC(10,2) for monetary values to avoid floating-point precision issues.',
-        'VARCHAR with appropriate length limits to balance storage efficiency and data requirements.',
-        'DEFAULT values for optional fields (member_type defaults to "Regular", unit_price defaults to 0).',
-    ]
-    for d in db_decisions:
-        doc.add_paragraph(d, style='List Bullet')
-
-    add_page_break(doc)
-
-    doc.add_heading('5.4 API Endpoints', level=2)
-    doc.add_paragraph(
-        'The SalesDB API exposes the following RESTful endpoints. All data endpoints accept '
-        'and return JSON format. The API follows standard HTTP conventions: GET for reading, '
-        'POST for creating, PUT for updating, and DELETE for removing resources.'
-    )
-
-    add_styled_table(doc,
-        ['Method', 'Endpoint', 'Description', 'Request Body'],
-        [
-            ['GET', '/api/health', 'Check API & DB status', '—'],
-            ['POST', '/api/setup', 'Create/update DB schema', '—'],
-            ['GET', '/api/analytics/kpis', 'Get dashboard KPIs', '—'],
-            ['GET', '/api/analytics/revenue-by-category', 'Revenue per category', '—'],
-            ['GET', '/api/analytics/revenue-over-time', 'Daily revenue data', '—'],
-            ['GET', '/api/customers', 'List all customers', '—'],
-            ['POST', '/api/customers', 'Add new customer', 'JSON (7 fields)'],
-            ['PUT', '/api/customers/<id>', 'Update customer', 'JSON (7 fields)'],
-            ['DELETE', '/api/customers/<id>', 'Delete customer', '—'],
-            ['GET', '/api/products', 'List all products', '—'],
-            ['POST', '/api/products', 'Add new product', 'JSON (3 fields)'],
-            ['PUT', '/api/products/<id>', 'Update product', 'JSON (3 fields)'],
-            ['DELETE', '/api/products/<id>', 'Delete product', '—'],
-            ['GET', '/api/sales', 'List all sales', '—'],
-            ['POST', '/api/sales', 'Add new sale', 'JSON (5 fields)'],
-            ['DELETE', '/api/sales/<id>', 'Delete sale', '—'],
-        ]
-    )
-    doc.add_paragraph('\nTable 5.1: API Endpoints Summary')
-
-    doc.add_heading('5.5 Key Code Snippets', level=2)
-
-    doc.add_heading('5.5.1 Auto-Calculate Sale Amount (JavaScript)', level=3)
-    doc.add_paragraph(
-        'The following function automatically calculates the total sale amount when the user '
-        'selects a product or changes the quantity:'
-    )
-    code_block = doc.add_paragraph()
-    code_text = (
-        'function calcSaleAmount() {\n'
-        '  const sel = document.getElementById("sale-product");\n'
-        '  const option = sel.options[sel.selectedIndex];\n'
-        '  const price = parseFloat(option?.getAttribute("data-price") || 0);\n'
-        '  const qty = parseInt(document.getElementById("sale-qty").value) || 0;\n'
-        '  const total = price * qty;\n'
-        '  document.getElementById("sale-amount").value = \n'
-        '    total > 0 ? total.toFixed(2) : "";\n'
-        '}'
-    )
-    run = code_block.add_run(code_text)
-    run.font.name = 'Consolas'
-    run.font.size = Pt(9)
-    run.font.color.rgb = RGBColor(236, 72, 153)
-
-    doc.add_heading('5.5.2 Database Connection Helper (Python)', level=3)
-    code_block2 = doc.add_paragraph()
-    code_text2 = (
-        'def get_conn():\n'
-        '    try:\n'
-        '        return psycopg2.connect(**DB_CONFIG)\n'
-        '    except psycopg2.OperationalError as e:\n'
-        '        raise RuntimeError(\n'
-        '            f"Cannot connect to PostgreSQL: {e}"\n'
-        '        ) from e'
-    )
-    run = code_block2.add_run(code_text2)
-    run.font.name = 'Consolas'
-    run.font.size = Pt(9)
-    run.font.color.rgb = RGBColor(59, 130, 246)
-
-    doc.add_heading('5.5.3 KPI Analytics Query (SQL)', level=3)
-    code_block3 = doc.add_paragraph()
-    code_text3 = (
-        'SELECT\n'
-        '    COUNT(*)::int                          AS total_sales,\n'
-        '    COALESCE(SUM(sale_amount), 0)::float  AS total_revenue,\n'
-        '    COALESCE(AVG(sale_amount), 0)::float  AS avg_order_value,\n'
-        '    (SELECT COUNT(*) FROM customer_dim)    AS total_customers,\n'
-        '    (SELECT COUNT(*) FROM product_dim)     AS total_products\n'
-        'FROM sales_fact;'
-    )
-    run = code_block3.add_run(code_text3)
-    run.font.name = 'Consolas'
-    run.font.size = Pt(9)
-    run.font.color.rgb = RGBColor(61, 220, 132)
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 6: TESTING (Pages 41-43)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 6: Testing', level=1)
-
-    doc.add_heading('6.1 Testing Strategy', level=2)
-    doc.add_paragraph(
-        'Testing was performed at multiple levels to ensure the reliability and correctness '
-        'of the SalesDB application. The testing strategy included API endpoint testing using '
-        'curl and browser developer tools, frontend functional testing through manual interaction, '
-        'and integration testing to verify the complete data flow from UI to database and back.'
-    )
-    doc.add_paragraph(
-        'Each test case was designed to verify both positive scenarios (valid input producing '
-        'expected results) and negative scenarios (invalid input producing appropriate error '
-        'messages). Edge cases such as empty databases, deletion of referenced records, and '
-        'boundary values were also tested.'
-    )
-
-    doc.add_heading('6.2 Test Cases', level=2)
-
-    doc.add_heading('6.2.1 Customer Module Test Cases', level=3)
-    add_styled_table(doc,
-        ['TC ID', 'Test Case', 'Input', 'Expected Output', 'Result'],
-        [
-            ['TC-C01', 'Add valid customer', 'All fields filled', 'Customer created, toast shown', 'Pass'],
-            ['TC-C02', 'Add without first name', 'First name empty', 'Error: name required', 'Pass'],
-            ['TC-C03', 'Edit existing customer', 'Change city', 'Customer updated', 'Pass'],
-            ['TC-C04', 'Delete customer', 'Click delete, confirm', 'Customer & sales removed', 'Pass'],
-            ['TC-C05', 'Cancel edit', 'Click cancel', 'Form resets to add mode', 'Pass'],
-            ['TC-C06', 'Add with Gold membership', 'Member type = Gold', 'Gold badge displayed', 'Pass'],
-        ]
-    )
-    doc.add_paragraph('\nTable 6.1: Test Cases — Customers')
-
-    doc.add_heading('6.2.2 Product Module Test Cases', level=3)
-    add_styled_table(doc,
-        ['TC ID', 'Test Case', 'Input', 'Expected Output', 'Result'],
-        [
-            ['TC-P01', 'Add product with price', 'Name + price', 'Product created with price', 'Pass'],
-            ['TC-P02', 'Add without name', 'Name empty', 'Error: name required', 'Pass'],
-            ['TC-P03', 'Add without price', 'Price empty', 'Error: price required', 'Pass'],
-            ['TC-P04', 'Edit product price', 'Change price', 'Price updated, sales recalc', 'Pass'],
-            ['TC-P05', 'Delete product', 'Confirm delete', 'Product & related sales deleted', 'Pass'],
-        ]
-    )
-    doc.add_paragraph('\nTable 6.2: Test Cases — Products')
-
-    doc.add_heading('6.2.3 Sales Module Test Cases', level=3)
-    add_styled_table(doc,
-        ['TC ID', 'Test Case', 'Input', 'Expected Output', 'Result'],
-        [
-            ['TC-S01', 'Add sale', 'Customer + Product + Qty', 'Sale added, amount auto-calc', 'Pass'],
-            ['TC-S02', 'Auto-calculate amount', 'Select product, qty=3', 'Amount = price × 3', 'Pass'],
-            ['TC-S03', 'Change quantity', 'Modify qty field', 'Amount recalculates', 'Pass'],
-            ['TC-S04', 'Delete sale', 'Click delete', 'Sale removed, KPIs update', 'Pass'],
-            ['TC-S05', 'Add without date', 'Date empty', 'Error: fill all fields', 'Pass'],
-        ]
-    )
-    doc.add_paragraph('\nTable 6.3: Test Cases — Sales')
-
-    doc.add_heading('6.3 Test Results Summary', level=2)
-    add_styled_table(doc,
-        ['Module', 'Total Tests', 'Passed', 'Failed', 'Pass Rate'],
-        [
-            ['Customers', '6', '6', '0', '100%'],
-            ['Products', '5', '5', '0', '100%'],
-            ['Sales', '5', '5', '0', '100%'],
-            ['Dashboard', '3', '3', '0', '100%'],
-            ['API Health', '2', '2', '0', '100%'],
-            ['TOTAL', '21', '21', '0', '100%'],
-        ]
-    )
-    doc.add_paragraph('\nTable 6.4: Test Results Summary')
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 7: RESULTS & SCREENSHOTS (Pages 44-45)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 7: Results & Screenshots', level=1)
-
-    doc.add_heading('7.1 Dashboard View', level=2)
-    doc.add_paragraph(
-        'The dashboard provides a comprehensive overview of business performance through five '
-        'KPI cards and three interactive charts. The KPI cards display Total Revenue, Total Sales, '
-        'Average Order Value, Customer Count, and Product Count. Each card features a colored '
-        'accent bar at the top for visual distinction.'
-    )
-    doc.add_paragraph(
-        'The charts section includes a bar chart showing revenue breakdown by product category, '
-        'a doughnut chart displaying the sales distribution across categories, and a pie chart '
-        'showing the split between Gold and Regular customer segments.'
-    )
-    doc.add_paragraph('\nFigure 7.1: Dashboard Charts & KPIs')
-    doc.add_picture(dashboard_img, width=Inches(5.5))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-
-    doc.add_heading('7.2 Sales Management', level=2)
-    doc.add_paragraph(
-        'The Sales section features a form at the top for adding new sales and a comprehensive '
-        'table below listing all sales records. The form includes dropdown selectors for Customer '
-        'and Product (which show the unit price alongside the product name), a date picker, '
-        'a quantity input, and a read-only auto-calculated amount field. The table displays '
-        'sale ID, customer name, product name, category badge, date, quantity, unit price, '
-        'and total amount with a delete button for each row.'
-    )
-
-    doc.add_heading('7.3 Customer Management', level=2)
-    doc.add_paragraph(
-        'The Customer section provides a comprehensive form for adding and editing customer '
-        'information. The form supports seven fields: First Name, Last Name, City, Mobile Number, '
-        'Email, Region (dropdown with East/West/North/South options), and Member Type (Regular/Gold). '
-        'When editing, the form panel gets a blue highlight border, the title changes to show '
-        'the editing customer ID, and a Cancel button appears. The customer table shows all '
-        'customer details with Edit and Delete action buttons.'
-    )
-
-    doc.add_heading('7.4 Product Management', level=2)
-    doc.add_paragraph(
-        'The Product section allows managing the product catalog with three fields: Product Name, '
-        'Category (dropdown), and Unit Price. The product table displays all products with their '
-        'ID, name, category badge, formatted unit price, and Edit/Delete buttons. Editing a '
-        'product follows the same pattern as customer editing with visual feedback. The unit '
-        'price entered here is used for automatic sale amount calculation in the Sales module.'
-    )
-
-    doc.add_paragraph(
-        '\nNote: Actual screenshots of the running application should be captured and inserted '
-        'here to complement the descriptive text above. Open the application at http://localhost:5000 '
-        'and take screenshots of each section with sample data.'
-    )
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  CHAPTER 8: CONCLUSION (Pages 46)
-    # ══════════════════════════════════════════════
-    doc.add_heading('Chapter 8: Conclusion & Future Scope', level=1)
-
-    doc.add_heading('8.1 Conclusion', level=2)
-    doc.add_paragraph(
-        'The SalesDB project has been successfully designed, developed, and tested as a '
-        'comprehensive full-stack web application for sales data management and analytics. '
-        'The application demonstrates the effective integration of modern web technologies '
-        '(HTML5, CSS3, JavaScript, Chart.js) with a robust backend (Python Flask) and a '
-        'reliable database system (PostgreSQL).'
-    )
-    doc.add_paragraph(
-        'All project objectives have been achieved: complete CRUD operations for customers, '
-        'products, and sales; real-time analytics dashboard with KPI cards and interactive charts; '
-        'automatic sale amount calculation; responsive dark-themed UI; and proper database design '
-        'with referential integrity. The application handles edge cases gracefully with appropriate '
-        'error messages and user feedback through toast notifications.'
-    )
-    doc.add_paragraph(
-        'The star schema database design optimizes analytical queries, the RESTful API architecture '
-        'promotes frontend-backend decoupling, and the Agile development methodology enabled '
-        'iterative refinement based on continuous feedback. The project serves as a practical '
-        'demonstration of full-stack development skills and software engineering principles.'
-    )
-
-    doc.add_heading('8.2 Future Enhancements', level=2)
-    doc.add_paragraph(
-        'While the current version of SalesDB meets all defined requirements, several enhancements '
-        'could be implemented in future iterations:'
-    )
-    enhancements = [
-        'User Authentication: Implement login/logout functionality with role-based access control '
-        '(admin, manager, viewer) using Flask-Login or JWT tokens.',
-        'Advanced Analytics: Add trend analysis, forecasting, year-over-year comparisons, and '
-        'export functionality for reports in PDF/Excel formats.',
-        'Search & Filtering: Add search bars and filter options to all tables for finding specific '
-        'records quickly in large datasets.',
-        'Pagination: Implement server-side pagination for tables to handle thousands of records efficiently.',
-        'Data Import/Export: Support CSV/Excel file upload for bulk data import and export.',
-        'Email Notifications: Automated alerts for low inventory, high-value sales, or monthly summaries.',
-        'Cloud Deployment: Deploy on AWS, Heroku, or DigitalOcean for multi-user web access.',
-        'Mobile Application: Develop a companion mobile app using React Native or Flutter.',
-        'Invoice Generation: Auto-generate PDF invoices for each sale transaction.',
-        'Audit Logging: Track all data modifications with timestamps and user identification.',
-    ]
-    for enh in enhancements:
-        doc.add_paragraph(enh, style='List Bullet')
-
-    add_page_break(doc)
-
-    # ══════════════════════════════════════════════
-    #  REFERENCES (Page 47)
-    # ══════════════════════════════════════════════
-    doc.add_heading('References', level=1)
-    add_spacer(doc, 1)
-
-    references = [
-        '[1] Flask Documentation — https://flask.palletsprojects.com/ — Pallets Projects, 2024.',
-        '[2] PostgreSQL Documentation — https://www.postgresql.org/docs/ — PostgreSQL Global Development Group, 2024.',
-        '[3] Chart.js Documentation — https://www.chartjs.org/docs/ — Chart.js Contributors, 2024.',
-        '[4] psycopg2 Documentation — https://www.psycopg.org/docs/ — Federico Di Gregorio, 2024.',
-        '[5] MDN Web Docs — HTML, CSS, JavaScript — https://developer.mozilla.org/ — Mozilla Foundation, 2024.',
-        '[6] Kimball, R. & Ross, M. — "The Data Warehouse Toolkit" — Wiley, 3rd Edition, 2013.',
-        '[7] Fielding, R.T. — "Architectural Styles and the Design of Network-based Software Architectures" — '
-        'Doctoral Dissertation, University of California, Irvine, 2000.',
-        '[8] Agile Alliance — "Agile Manifesto" — https://agilemanifesto.org/ — 2001.',
-        '[9] Sommerville, I. — "Software Engineering" — Pearson, 10th Edition, 2015.',
-        '[10] Pressman, R.S. — "Software Engineering: A Practitioner\'s Approach" — McGraw-Hill, 9th Edition, 2019.',
-        '[11] Elmasri, R. & Navathe, S.B. — "Fundamentals of Database Systems" — Pearson, 7th Edition, 2016.',
-        '[12] Python Documentation — https://docs.python.org/3/ — Python Software Foundation, 2024.',
-        '[13] Google Fonts — Syne & JetBrains Mono — https://fonts.google.com/ — Google, 2024.',
-        '[14] flask-cors Documentation — https://flask-cors.readthedocs.io/ — Cory Dolphin, 2024.',
-        '[15] W3Schools — Web Development Tutorials — https://www.w3schools.com/ — Refsnes Data, 2024.',
-    ]
-
-    for ref in references:
+    for num, cap in figures:
         p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(3)
+        run = p.add_run(f"Figure {num} — {cap}")
+        sf(run, FONT, BODY)
+
+    page_break(doc)
+
+    # List of Tables
+    heading(doc, "LIST OF TABLES", 1)
+    blank(doc, 1)
+    tables = [
+        ("2.1", "Comparison of Existing Systems"),
+        ("3.1", "Functional Requirements List"),
+        ("3.2", "Non-Functional Requirements"),
+        ("4.1", "Waterfall Phase Deliverables"),
+        ("4.2", "Sprint/Phase Timeline"),
+        ("5.1", "Database Schema — customer_dim"),
+        ("5.2", "Database Schema — product_dim"),
+        ("5.3", "Database Schema — sales_fact"),
+        ("5.4", "Database Schema — invoice_fact"),
+        ("5.5", "Database Schema — stock_history"),
+        ("5.6", "API Endpoints Summary"),
+        ("6.1", "Technology Stack Summary"),
+        ("7.1", "Unit Test Cases"),
+        ("7.2", "Integration Test Cases"),
+        ("7.3", "UAT Results Summary"),
+        ("8.1", "KPI Metrics from Live System"),
+        ("8.2", "Sales Records Summary"),
+    ]
+    for num, cap in tables:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(3)
+        run = p.add_run(f"Table {num} — {cap}")
+        sf(run, FONT, BODY)
+
+    page_break(doc)
+
+
+# ═══════════════════════════════════════════
+#  NEW CHAPTER: SDLC — WATERFALL MODEL
+# ═══════════════════════════════════════════
+
+def chapter_sdlc(doc):
+    chapter_title(doc, "IV", "SDLC — WATERFALL MODEL")
+
+    heading(doc, "SOFTWARE DEVELOPMENT LIFE CYCLE", 2, "4.")
+
+    heading(doc, "Software Development Life Cycle Overview", 2, "4.1")
+    para(doc, (
+        "The Software Development Life Cycle (SDLC) is a systematic "
+        "process for planning, creating, testing, and deploying software "
+        "applications. It provides a structured framework that defines "
+        "the tasks to be performed at each stage of the software "
+        "development process. The SDLC ensures that the final software "
+        "product meets both functional and non-functional requirements "
+        "while being delivered within time and budget constraints [17]."
+    ))
+    para(doc, (
+        "Various SDLC models exist, each with distinct characteristics "
+        "suited to different project types. The most commonly used "
+        "models include:"
+    ))
+    bullet(doc, "Waterfall Model — Sequential, phase-based approach")
+    bullet(doc, "Agile Model — Iterative, sprint-based development")
+    bullet(doc, "Spiral Model — Risk-driven, iterative approach")
+    bullet(doc, "V-Model — Verification and Validation model")
+    bullet(doc, "Iterative Model — Repeated cycles of development")
+    bullet(doc, "RAD Model — Rapid Application Development")
+
+    para(doc, (
+        "For the Retail Sales Data Analysis project, the Waterfall "
+        "Model was selected as the SDLC methodology. This decision was "
+        "based on the well-defined nature of the project requirements, "
+        "the single-developer context, and the academic timeline "
+        "constraints. The following sections describe each phase of the "
+        "Waterfall Model as applied to this project."
+    ))
+
+    para(doc, (
+        "The Waterfall Model, originally described by Dr. Winston W. "
+        "Royce in 1970, is the earliest SDLC model and follows a "
+        "linear sequential approach where each phase must be completed "
+        "before the next phase begins. The output of one phase serves "
+        "as the input for the subsequent phase, creating a cascading "
+        "flow reminiscent of a waterfall [17]."
+    ))
+
+    para(doc, (
+        "Figure 4.1 illustrates the five phases of the Waterfall Model "
+        "as applied to the Retail Sales Data Analysis project."
+    ))
+
+    para(doc, "[Insert Figure 4.1: Waterfall Model Diagram]", BODY,
+         italic=True, align=WD_ALIGN_PARAGRAPH.CENTER,
+         color=(150, 150, 150))
+    para(doc, "Figure 4.1: Waterfall Model — Five Sequential Phases",
+         SMALL, bold=True, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    heading(doc, "Waterfall Model Selection Justification", 2, "4.2")
+    para(doc, (
+        "The Waterfall Model was selected for the Retail Sales Data "
+        "Analysis project based on the following justifications:"
+    ))
+
+    justifications = [
+        ("Well-Defined Requirements",
+         "All 24 functional requirements (Table 3.1) were identified "
+         "and documented during the initial analysis phase. The project "
+         "scope — dashboard, CRUD operations, invoice generation, stock "
+         "management, and reports — was clearly defined before development "
+         "commenced. There was no anticipated requirement volatility."),
+        ("Single Developer Context",
+         "The project was developed by a single MCA student. The "
+         "Waterfall Model's sequential nature eliminates the overhead of "
+         "sprint planning, stand-up meetings, and backlog grooming that "
+         "Agile methodologies require for team coordination."),
+        ("Academic Timeline",
+         "The project followed a fixed academic calendar with defined "
+         "submission deadlines. The Waterfall Model's milestone-based "
+         "approach aligns well with academic evaluation checkpoints "
+         "(mid-term review, final submission)."),
+        ("Technology Stability",
+         "All technologies used (Flask, PostgreSQL, HTML/CSS/JS, "
+         "Chart.js, ReportLab) are mature and stable. No research or "
+         "prototyping was needed to validate technology choices, "
+         "eliminating the need for iterative technology evaluation."),
+        ("Documentation Requirements",
+         "Academic project submissions require comprehensive "
+         "documentation at each stage. The Waterfall Model naturally "
+         "produces documentation artifacts (SRS, design documents, test "
+         "reports) at each phase transition."),
+    ]
+    for title, desc in justifications:
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(6)
+        p.paragraph_format.left_indent = Cm(0.5)
+        run = p.add_run(f"• {title}: ")
+        sf(run, FONT, BODY, bold=True)
+        run = p.add_run(desc)
+        sf(run, FONT, BODY)
+
+    para(doc, (
+        "While the Waterfall Model has known limitations — particularly "
+        "its inflexibility to requirement changes during later phases — "
+        "these limitations were mitigated by the project's well-defined "
+        "scope and the single-developer's ability to make minor "
+        "adjustments without formal change management processes."
+    ))
+
+    page_break(doc)
+
+    # ── Phase 1: Requirement Analysis ──
+    heading(doc, "Phase 1: Requirement Analysis", 2, "4.3")
+    para(doc, (
+        "The Requirement Analysis phase was the first and foundational "
+        "phase of the Waterfall Model for the Retail Sales Data Analysis "
+        "project. This phase focused on understanding the problem domain, "
+        "identifying stakeholder needs, and documenting all functional "
+        "and non-functional requirements that the system must satisfy."
+    ))
+
+    heading(doc, "Activities Performed", 3, "4.3.1")
+    numbered(doc, 1, (
+        "Problem Domain Study: Analysed the operational challenges "
+        "faced by small and medium-sized retail businesses in India, "
+        "particularly in Odisha, in managing sales data, inventory, "
+        "and invoicing."
+    ))
+    numbered(doc, 2, (
+        "Stakeholder Identification: Identified two primary actors — "
+        "Admin (business owner/manager with full CRUD access) and "
+        "Viewer (any user with dashboard-only access)."
+    ))
+    numbered(doc, 3, (
+        "Requirement Elicitation: Derived 24 functional requirements "
+        "(FR-01 to FR-24) and 12 non-functional requirements across "
+        "performance, security, usability, maintainability, portability, "
+        "and reliability categories."
+    ))
+    numbered(doc, 4, (
+        "Feasibility Assessment: Conducted technical feasibility "
+        "(open-source stack availability), economic feasibility (zero "
+        "licensing cost vs. commercial alternatives), and operational "
+        "feasibility (single-command startup, browser-based access) "
+        "analyses."
+    ))
+    numbered(doc, 5, (
+        "Use Case Modelling: Created use case diagrams for Admin and "
+        "Viewer actors, with detailed use case description for the "
+        "most complex operation (UC-12: Generate Invoice Using Invoice "
+        "Builder)."
+    ))
+
+    heading(doc, "Deliverables", 3, "4.3.2")
+    bullet(doc, "Software Requirements Specification (SRS) document")
+    bullet(doc, "Use Case Diagrams (Admin and Viewer)")
+    bullet(doc, "Feasibility Study Report")
+    bullet(doc, "Functional Requirements Table (24 requirements)")
+    bullet(doc, "Non-Functional Requirements Table (12 requirements)")
+
+    heading(doc, "Duration", 3, "4.3.3")
+    para(doc, (
+        "The Requirement Analysis phase spanned approximately 3 weeks "
+        "(Weeks 1-3 of the project timeline). This duration included "
+        "literature review of existing systems, requirements elicitation "
+        "through domain analysis, and documentation of the SRS."
+    ))
+
+    page_break(doc)
+
+    # ── Phase 2: System Design ──
+    heading(doc, "Phase 2: System Design", 2, "4.4")
+    para(doc, (
+        "The System Design phase translated the documented requirements "
+        "into a detailed technical blueprint for the system. This phase "
+        "produced the architectural design, database schema, API "
+        "specification, and user interface wireframes that guided the "
+        "implementation phase."
+    ))
+
+    heading(doc, "Activities Performed", 3, "4.4.1")
+    numbered(doc, 1, (
+        "Architecture Design: Designed the three-tier client-server "
+        "architecture (Presentation Tier: HTML/CSS/JS, Application Tier: "
+        "Flask API, Data Tier: PostgreSQL) with a security layer spanning "
+        "all tiers."
+    ))
+    numbered(doc, 2, (
+        "Database Design: Created the Entity Relationship Diagram (ERD) "
+        "with 5 tables (customer_dim, product_dim, sales_fact, "
+        "invoice_fact, stock_history) in Third Normal Form (3NF). Defined "
+        "all primary keys, foreign keys with CASCADE constraints, data "
+        "types, and default values."
+    ))
+    numbered(doc, 3, (
+        "API Design: Specified 25+ RESTful API endpoints with HTTP "
+        "methods (GET/POST/PUT/DELETE), URL patterns, authentication "
+        "requirements, request/response JSON schemas, and error codes."
+    ))
+    numbered(doc, 4, (
+        "Data Flow Diagram Design: Created DFD Level 0 (Context Diagram) "
+        "showing the system boundary with Admin User and PostgreSQL as "
+        "external entities, and DFD Level 1 decomposing the system into "
+        "7 processes (Authenticate, Manage Customers, Manage Products, "
+        "Manage Sales, Generate Invoices, Manage Stocks, Generate "
+        "Reports) with 6 data stores."
+    ))
+    numbered(doc, 5, (
+        "UI/UX Design: Designed the sidebar-main layout pattern, dark "
+        "theme colour palette (15+ CSS custom properties), KPI card "
+        "grid layout, form control styling, table formatting, and "
+        "glassmorphism effects for the login overlay."
+    ))
+
+    heading(doc, "Deliverables", 3, "4.4.2")
+    bullet(doc, "System Architecture Diagram")
+    bullet(doc, "Entity Relationship Diagram (5 tables)")
+    bullet(doc, "Database Schema Specification (Tables 5.1-5.5)")
+    bullet(doc, "DFD Level 0 and DFD Level 1")
+    bullet(doc, "API Endpoint Specification (Table 5.6)")
+    bullet(doc, "UI Wireframe/Colour Palette Documentation")
+
+    heading(doc, "Duration", 3, "4.4.3")
+    para(doc, (
+        "The System Design phase spanned approximately 3 weeks "
+        "(Weeks 4-6). The database design and API specification were "
+        "completed first, followed by the UI design and DFD creation."
+    ))
+
+    page_break(doc)
+
+    # ── Phase 3: Implementation (Coding) ──
+    heading(doc, "Phase 3: Implementation (Coding)", 2, "4.5")
+    para(doc, (
+        "The Implementation phase translated the design documents into "
+        "working source code. This was the most effort-intensive phase, "
+        "involving backend API development, database schema creation, "
+        "frontend UI implementation, and PDF generation pipeline "
+        "construction."
+    ))
+
+    heading(doc, "Activities Performed", 3, "4.5.1")
+    numbered(doc, 1, (
+        "Environment Setup: Installed Python 3.11, PostgreSQL 16, and "
+        "all pip packages (flask, flask-cors, psycopg2-binary, "
+        "reportlab). Created the sales_db database and configured "
+        "environment variables."
+    ))
+    numbered(doc, 2, (
+        "Backend Development (app.py — 450+ lines): Implemented all "
+        "Flask route handlers for authentication (login, logout, "
+        "auth_check), CRUD operations (customers, products, sales), "
+        "analytics (KPIs, revenue-by-category), stock management "
+        "(restock, history), invoice operations (save, download, "
+        "download-custom, status update), and reports (filtered sales)."
+    ))
+    numbered(doc, 3, (
+        "Database Schema Implementation (POST /api/setup): Coded the "
+        "CREATE TABLE IF NOT EXISTS statements for all 5 tables with "
+        "proper constraints, and the ALTER TABLE migration block for "
+        "backward compatibility."
+    ))
+    numbered(doc, 4, (
+        "Frontend Development (script.js — 700+ lines): Implemented "
+        "the API communication layer (async api() helper), navigation "
+        "system (navigateTo()), authentication flow (checkAuth, login, "
+        "logout, updateAuthUI), data loading functions (loadCustomers, "
+        "loadProducts, loadSales, loadKPIs, loadCharts), CRUD form "
+        "handlers (submitCustomer, submitProduct, addSale), stock "
+        "management (loadStocksPage, restockProduct, filterStock), "
+        "invoice builder (onInvCustomerChange, renderInvRows, "
+        "recalcTotals, buildInvPayload, previewInvoice, "
+        "saveAndDownloadInvoice), and reports (loadReport, exportCSV)."
+    ))
+    numbered(doc, 5, (
+        "CSS Styling (styles.css — 500+ lines): Implemented the "
+        "complete dark theme with CSS custom properties, sidebar layout, "
+        "KPI card grid, chart containers, form controls, table styling, "
+        "badge components, button variants, login overlay with "
+        "glassmorphism, toast notifications, and responsive media "
+        "queries for 900px and 1100px breakpoints."
+    ))
+    numbered(doc, 6, (
+        "HTML Structure (index.html — 350+ lines): Created the "
+        "single-page application shell with sidebar navigation (7 "
+        "sections), topbar with auth controls, 7 content sections "
+        "(dashboard, sales, customers, products, stocks, invoices, "
+        "reports), login overlay modal, invoice preview modal, and "
+        "toast notification element."
+    ))
+    numbered(doc, 7, (
+        "PDF Generation Pipeline (_build_invoice_pdf function): "
+        "Implemented A4-format invoice PDF creation using ReportLab's "
+        "canvas API with company header, customer billing details, "
+        "itemised line items, GST calculation, terms and conditions, "
+        "and branded footer."
+    ))
+
+    heading(doc, "Code Metrics", 3, "4.5.2")
+    add_table(doc,
+        ["File", "Language", "Lines of Code", "Functions/Routes"],
+        [
+            ["app.py", "Python", "~450", "25+ routes"],
+            ["script.js", "JavaScript", "~700", "40+ functions"],
+            ["styles.css", "CSS", "~500", "100+ rules"],
+            ["index.html", "HTML", "~350", "7 sections"],
+            ["TOTAL", "—", "~2,000", "—"],
+        ],
+        "Table 4.1: Source Code Metrics"
+    )
+
+    heading(doc, "Duration", 3, "4.5.3")
+    para(doc, (
+        "The Implementation phase spanned approximately 6 weeks "
+        "(Weeks 7-12). Backend API development consumed 2 weeks, "
+        "frontend JavaScript consumed 2 weeks, CSS styling and HTML "
+        "structure consumed 1 week, and PDF generation consumed 1 week."
+    ))
+
+    page_break(doc)
+
+    # ── Phase 4: Testing ──
+    heading(doc, "Phase 4: Testing", 2, "4.6")
+    para(doc, (
+        "The Testing phase verified that the implemented system meets "
+        "all documented requirements and functions correctly under "
+        "both normal and edge-case conditions. A three-level testing "
+        "strategy was employed: unit testing, integration testing, and "
+        "user acceptance testing."
+    ))
+
+    heading(doc, "Activities Performed", 3, "4.6.1")
+    numbered(doc, 1, (
+        "Unit Testing: Tested 20 individual API endpoints (UT-01 to "
+        "UT-20) covering valid inputs (happy path), invalid inputs "
+        "(error path), authentication enforcement, stock validation, "
+        "and PDF generation. All 20 unit tests passed."
+    ))
+    numbered(doc, 2, (
+        "Integration Testing: Tested 6 multi-component workflows "
+        "(IT-01 to IT-06) covering complete sale workflow, invoice "
+        "builder auto-fill, invoice save with KPI update, mark paid "
+        "with KPI update, delete sale with stock restore, and report "
+        "filter with chart update. All 6 integration tests passed."
+    ))
+    numbered(doc, 3, (
+        "User Acceptance Testing: Evaluated the system against all 24 "
+        "functional requirements (FR-01 to FR-24) through systematic "
+        "browser-based execution. 100% pass rate achieved across all "
+        "8 modules (Authentication, Dashboard, Customers, Products, "
+        "Sales, Stocks, Invoices, Reports)."
+    ))
+
+    heading(doc, "Deliverables", 3, "4.6.2")
+    bullet(doc, "Unit Test Cases and Results (Table 7.1)")
+    bullet(doc, "Integration Test Cases and Results (Table 7.2)")
+    bullet(doc, "UAT Results Summary (Table 7.3)")
+    bullet(doc, "Defect Log (0 critical defects)")
+
+    heading(doc, "Duration", 3, "4.6.3")
+    para(doc, (
+        "The Testing phase spanned approximately 2 weeks (Weeks 13-14). "
+        "Unit testing consumed 1 week and integration/UAT testing "
+        "consumed 1 week."
+    ))
+
+    page_break(doc)
+
+    # ── Phase 5: Deployment and Maintenance ──
+    heading(doc, "Phase 5: Deployment and Maintenance", 2, "4.7")
+    para(doc, (
+        "The Deployment and Maintenance phase covers the operational "
+        "readiness of the system and planned maintenance activities."
+    ))
+
+    heading(doc, "Deployment Activities", 3, "4.7.1")
+    numbered(doc, 1, (
+        "Local Deployment: The system is deployed locally using "
+        "Flask's built-in Werkzeug development server on port 5000. "
+        "Startup requires a single command: python app.py."
+    ))
+    numbered(doc, 2, (
+        "Database Initialisation: The POST /api/setup endpoint creates "
+        "all 5 database tables idempotently, allowing one-command "
+        "database setup."
+    ))
+    numbered(doc, 3, (
+        "Sample Data Loading: Sample data (6 customers, 8 products, "
+        "6 sales) is loaded through the browser-based management "
+        "interfaces."
+    ))
+    numbered(doc, 4, (
+        "Documentation: This project report, along with inline code "
+        "comments in all source files, serves as the system "
+        "documentation."
+    ))
+
+    heading(doc, "Maintenance Plan", 3, "4.7.2")
+    para(doc, (
+        "The following maintenance activities are planned for the "
+        "post-deployment period:"
+    ))
+    bullet(doc, (
+        "Corrective Maintenance: Bug fixes identified during "
+        "extended usage."
+    ))
+    bullet(doc, (
+        "Adaptive Maintenance: Updates to accommodate new browser "
+        "versions or PostgreSQL releases."
+    ))
+    bullet(doc, (
+        "Perfective Maintenance: Performance optimisation for larger "
+        "datasets (100+ products, 1000+ sales)."
+    ))
+    bullet(doc, (
+        "Preventive Maintenance: Regular database backup procedures "
+        "using pg_dump."
+    ))
+
+    heading(doc, "Duration", 3, "4.7.3")
+    para(doc, (
+        "Deployment consumed 1 week (Week 15). Maintenance is ongoing "
+        "throughout the system's operational life."
+    ))
+
+    # ── Waterfall Timeline ──
+    heading(doc, "Waterfall Model Timeline", 2, "4.8")
+    para(doc, (
+        "Table 4.2 presents the complete Waterfall Model timeline for "
+        "the Retail Sales Data Analysis project, showing the duration, "
+        "key activities, and deliverables for each phase."
+    ))
+    add_table(doc,
+        ["Phase", "Duration", "Weeks", "Key Deliverables"],
+        [
+            ["Requirement Analysis", "3 weeks", "W1-W3",
+             "SRS, Use Cases, Feasibility"],
+            ["System Design", "3 weeks", "W4-W6",
+             "Architecture, ERD, DFD, API Spec"],
+            ["Implementation", "6 weeks", "W7-W12",
+             "app.py, script.js, styles.css, index.html"],
+            ["Testing", "2 weeks", "W13-W14",
+             "Unit/Integration/UAT Test Reports"],
+            ["Deployment", "1 week", "W15",
+             "Deployed System, Documentation"],
+            ["TOTAL", "15 weeks", "W1-W15", "Complete System + Report"],
+        ],
+        "Table 4.2: Waterfall Phase Timeline"
+    )
+
+    para(doc, (
+        "Figure 4.2 presents a visual Gantt chart representation of "
+        "the Waterfall timeline."
+    ))
+    para(doc, "[Insert Figure 4.2: Waterfall Phase Timeline — Gantt Chart]",
+         BODY, italic=True, align=WD_ALIGN_PARAGRAPH.CENTER,
+         color=(150, 150, 150))
+    para(doc, "Figure 4.2: Waterfall Phase Timeline — Gantt Chart",
+         SMALL, bold=True, italic=True,
+         align=WD_ALIGN_PARAGRAPH.CENTER)
+
+    page_break(doc)
+
+
+# ═══════════════════════════════════════════
+#  NEW CHAPTER: SOURCE CODE
+# ═══════════════════════════════════════════
+
+def chapter_source_code(doc):
+    chapter_title(doc, "IX", "SOURCE CODE")
+    para(doc, (
+        "This chapter presents the complete source code of the Retail "
+        "Sales Data Analysis system. The codebase consists of four files: "
+        "app.py (Flask backend), script.js (frontend JavaScript), "
+        "styles.css (CSS stylesheet), and index.html (HTML structure). "
+        "Key sections of each file are presented with inline commentary."
+    ))
+
+    # ── 9.1 Backend Code ──
+    heading(doc, "Backend Code (app.py)", 2, "9.1")
+    para(doc, (
+        "The Flask backend application is contained in a single file "
+        "(app.py) consisting of approximately 450 lines of Python code. "
+        "The following sections present the key components."
+    ))
+
+    heading(doc, "Application Configuration and Imports", 3, "9.1.1")
+    code_block(doc, '''from flask import Flask, jsonify, request, send_from_directory
+from flask import session, make_response
+from flask_cors import CORS
+from datetime import timedelta, datetime
+import psycopg2, psycopg2.extras, os, functools, io
+
+app = Flask(__name__, static_folder=".")
+CORS(app, supports_credentials=True)
+
+app.secret_key = os.getenv("SECRET_KEY", "salesdb-secret-2024")
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=30)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
+
+COMPANY = {
+    "name": "SalesDB Pvt. Ltd.",
+    "address": "Kendrapara, Odisha",
+    "pin": "754289",
+    "phone": "+91 7205109609",
+    "email": "sales@salesdb.com",
+    "gst": "21XXXXX1234X1ZX",
+}
+TAX_RATE = 0.18''', "Code 9.1: Application Configuration")
+
+    heading(doc, "Database Connection and Authentication", 3, "9.1.2")
+    code_block(doc, '''DB_CONFIG = {
+    "dbname": os.getenv("DB_NAME", "sales_db"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", "Abhi@4321"),
+    "host": os.getenv("DB_HOST", "localhost"),
+    "port": os.getenv("DB_PORT", "5432"),
+    "connect_timeout": 5,
+}
+
+def get_conn():
+    try:
+        return psycopg2.connect(**DB_CONFIG)
+    except psycopg2.OperationalError as e:
+        raise RuntimeError(f"DB Error: {e}") from e
+
+def dc(conn):
+    return conn.cursor(
+        cursor_factory=psycopg2.extras.RealDictCursor
+    )
+
+def login_required(f):
+    @functools.wraps(f)
+    def w(*a, **k):
+        if not session.get("admin"):
+            return jsonify({"error": "Auth required"}), 401
+        return f(*a, **k)
+    return w''', "Code 9.2: Database Connection and Auth Decorator")
+
+    heading(doc, "Authentication Routes", 3, "9.1.3")
+    code_block(doc, '''@app.route("/api/auth/check")
+def auth_check():
+    return jsonify({
+        "authenticated": bool(session.get("admin"))
+    })
+
+@app.route("/api/login", methods=["POST"])
+def do_login():
+    d = request.get_json(force=True)
+    if (d.get("username","").strip() == ADMIN_USER
+        and d.get("password","") == ADMIN_PASS):
+        session.permanent = True
+        session["admin"] = True
+        return jsonify({"success": True})
+    return jsonify({
+        "success": False,
+        "error": "Invalid credentials"
+    }), 401
+
+@app.route("/api/logout", methods=["POST"])
+def do_logout():
+    session.clear()
+    return jsonify({"success": True})''', "Code 9.3: Authentication Routes")
+
+    page_break(doc)
+
+    heading(doc, "Sales Recording Route", 3, "9.1.4")
+    code_block(doc, '''@app.route("/api/sales", methods=["POST"])
+@login_required
+def add_sale():
+    d = request.get_json(force=True)
+    required = ["customer_id","product_id",
+                "sale_date","quantity","sale_amount"]
+    missing = [f for f in required if f not in d]
+    if missing:
+        return jsonify({"error":f"Missing: {missing}"}), 400
+    conn = get_conn()
+    with dc(conn) as cur:
+        # Check stock
+        cur.execute(
+            "SELECT stock_qty, product_name "
+            "FROM product_dim WHERE product_id=%s;",
+            (d["product_id"],))
+        prod = cur.fetchone()
+        if not prod:
+            return jsonify({"error":"Product not found"}), 404
+        if (prod["stock_qty"] or 0) < d["quantity"]:
+            return jsonify({
+                "error": f"Insufficient stock for "
+                f"{prod['product_name']}. "
+                f"Available: {prod['stock_qty'] or 0}"
+            }), 400
+        # Insert sale
+        cur.execute(
+            "INSERT INTO sales_fact"
+            "(customer_id,product_id,sale_date,"
+            "quantity,sale_amount) "
+            "VALUES(%s,%s,%s,%s,%s) RETURNING sale_id;",
+            (d["customer_id"], d["product_id"],
+             d["sale_date"], d["quantity"],
+             d["sale_amount"]))
+        sale_id = cur.fetchone()["sale_id"]
+        # Deduct stock
+        cur.execute(
+            "UPDATE product_dim SET "
+            "stock_qty=stock_qty-%s "
+            "WHERE product_id=%s "
+            "RETURNING stock_qty;",
+            (d["quantity"], d["product_id"]))
+        new_stock = cur.fetchone()["stock_qty"]
+        # Log stock change
+        cur.execute(
+            "INSERT INTO stock_history"
+            "(product_id,change_type,"
+            "qty_change,new_stock) "
+            "VALUES(%s,%s,%s,%s);",
+            (d["product_id"], 'SALE',
+             -d["quantity"], new_stock))
+        # Create invoice
+        sub = float(d["sale_amount"])
+        tax = round(sub * TAX_RATE, 2)
+        grand = round(sub + tax, 2)
+        inv_no = f"INV-{datetime.now():%Y}-{sale_id:05d}"
+        cur.execute(
+            "INSERT INTO invoice_fact"
+            "(sale_id,invoice_no,subtotal,"
+            "tax_rate,tax_amount,grand_total,"
+            "status) VALUES(%s,%s,%s,%s,%s,%s,%s) "
+            "RETURNING invoice_id;",
+            (sale_id, inv_no, sub,
+             TAX_RATE*100, tax, grand, 'Pending'))
+        inv_id = cur.fetchone()["invoice_id"]
+    conn.commit(); conn.close()
+    return jsonify({
+        "sale_id": sale_id,
+        "invoice_no": inv_no,
+        "invoice_id": inv_id
+    }), 201''', "Code 9.4: Complete Sale Recording Route")
+
+    page_break(doc)
+
+    heading(doc, "KPI Analytics Route", 3, "9.1.5")
+    code_block(doc, '''@app.route("/api/analytics/kpis")
+def kpis():
+    conn = get_conn()
+    with dc(conn) as cur:
+        cur.execute("""
+            SELECT
+              COUNT(*)::int AS total_sales,
+              COALESCE(SUM(sale_amount),0)::float
+                AS total_revenue,
+              COALESCE(AVG(sale_amount),0)::float
+                AS avg_order_value,
+              (SELECT COUNT(*) FROM customer_dim)::int
+                AS total_customers,
+              (SELECT COUNT(*) FROM product_dim)::int
+                AS total_products
+            FROM sales_fact;
+        """)
+        row = dict(cur.fetchone())
+        cur.execute(
+            "SELECT COUNT(*)::int AS cnt "
+            "FROM product_dim "
+            "WHERE COALESCE(stock_qty,0)>0 "
+            "AND COALESCE(stock_qty,0)<=10;")
+        row["low_stock_count"] = cur.fetchone()["cnt"]
+        cur.execute(
+            "SELECT COUNT(*)::int AS cnt "
+            "FROM product_dim "
+            "WHERE COALESCE(stock_qty,0)<=0;")
+        row["out_stock_count"] = cur.fetchone()["cnt"]
+        cur.execute(
+            "SELECT COUNT(*)::int AS cnt "
+            "FROM invoice_fact "
+            "WHERE status='Pending';")
+        row["pending_invoices"] = cur.fetchone()["cnt"]
+    conn.close()
+    return jsonify(row)''', "Code 9.5: Dashboard KPI Analytics Route")
+
+    heading(doc, "Database Schema Setup Route", 3, "9.1.6")
+    code_block(doc, '''@app.route("/api/setup", methods=["POST"])
+def setup():
+    conn = get_conn()
+    with conn.cursor() as cur:
+        cur.execute("""
+          CREATE TABLE IF NOT EXISTS customer_dim(
+            customer_id SERIAL PRIMARY KEY,
+            first_name VARCHAR(50) NOT NULL,
+            last_name VARCHAR(50) NOT NULL,
+            city VARCHAR(50),
+            mobile_no VARCHAR(20),
+            email VARCHAR(100),
+            region VARCHAR(20),
+            member_type VARCHAR(20) DEFAULT 'Regular'
+          );
+          CREATE TABLE IF NOT EXISTS product_dim(
+            product_id SERIAL PRIMARY KEY,
+            product_name VARCHAR(100) NOT NULL,
+            category VARCHAR(50),
+            unit_price NUMERIC(10,2) DEFAULT 0,
+            stock_qty INTEGER DEFAULT 0
+          );
+          CREATE TABLE IF NOT EXISTS sales_fact(
+            sale_id SERIAL PRIMARY KEY,
+            customer_id INTEGER REFERENCES
+              customer_dim(customer_id)
+              ON DELETE CASCADE,
+            product_id INTEGER REFERENCES
+              product_dim(product_id)
+              ON DELETE CASCADE,
+            sale_date DATE NOT NULL,
+            quantity INTEGER NOT NULL,
+            sale_amount NUMERIC(10,2) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS invoice_fact(
+            invoice_id SERIAL PRIMARY KEY,
+            sale_id INTEGER REFERENCES
+              sales_fact(sale_id)
+              ON DELETE CASCADE,
+            invoice_no VARCHAR(30) UNIQUE NOT NULL,
+            subtotal NUMERIC(10,2) NOT NULL,
+            tax_rate NUMERIC(5,2) DEFAULT 18,
+            tax_amount NUMERIC(10,2) NOT NULL,
+            grand_total NUMERIC(10,2) NOT NULL,
+            status VARCHAR(20) DEFAULT 'Pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS stock_history(
+            history_id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES
+              product_dim(product_id)
+              ON DELETE CASCADE,
+            change_type VARCHAR(20) NOT NULL,
+            qty_change INTEGER NOT NULL,
+            new_stock INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        """)
+    conn.commit(); conn.close()
+    return jsonify({"status": "schema ready"})''',
+    "Code 9.6: Database Schema Setup")
+
+    page_break(doc)
+
+    # ── 9.2 Frontend Code ──
+    heading(doc, "Frontend Code (script.js)", 2, "9.2")
+    para(doc, (
+        "The frontend JavaScript code handles all client-side "
+        "interactivity. Key functions are presented below."
+    ))
+
+    heading(doc, "API Communication Layer", 3, "9.2.1")
+    code_block(doc, '''const API = location.protocol === 'file:'
+    ? 'http://localhost:5000/api' : '/api';
+
+async function api(path, method='GET', body=null) {
+    const opts = {
+        method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    if (res.status === 401) {
+        isAdmin = false;
+        updateAuthUI();
+        navigateTo('dashboard');
+        showLogin();
+        toast('Session expired', 'error');
+        throw new Error('Session expired');
+    }
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+}''', "Code 9.7: API Communication Helper")
+
+    heading(doc, "Auto-Calculation Function", 3, "9.2.2")
+    code_block(doc, '''function calcSaleAmount() {
+    const sel = document.getElementById('sale-product');
+    const opt = sel.options[sel.selectedIndex];
+    const price = parseFloat(
+        opt?.getAttribute('data-price') || 0
+    );
+    const qty = parseInt(
+        document.getElementById('sale-qty').value
+    ) || 0;
+    document.getElementById('sale-amount').value =
+        (price * qty > 0)
+            ? (price * qty).toFixed(2) : '';
+}''', "Code 9.8: Auto-Calculation Function")
+
+    heading(doc, "Dashboard Charts", 3, "9.2.3")
+    code_block(doc, '''async function loadCharts() {
+    const catData = await api(
+        '/analytics/revenue-by-category'
+    );
+    if (chartCategory) chartCategory.destroy();
+    if (chartDoughnut) chartDoughnut.destroy();
+    if (chartPie) chartPie.destroy();
+
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.font = {
+        family: "'JetBrains Mono', monospace",
+        size: 11
+    };
+
+    chartCategory = new Chart(
+        document.getElementById('chartCategory'), {
+        type: 'bar',
+        data: {
+            labels: catData.map(r => r.category),
+            datasets: [{
+                data: catData.map(r => r.total_revenue),
+                backgroundColor: ACCENT.map(c => c+'CC'),
+                borderColor: ACCENT,
+                borderWidth: 1,
+                borderRadius: 4,
+                barThickness: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    grid: { color: '#334155' },
+                    ticks: {
+                        callback: v => '$' + v
+                    }
+                }
+            }
+        }
+    });
+    // ... doughnut and pie charts similarly
+}''', "Code 9.9: Dashboard Chart Rendering")
+
+    heading(doc, "Invoice Builder — Customer Selection", 3, "9.2.4")
+    code_block(doc, '''async function onInvCustomerChange() {
+    const cid = +document.getElementById(
+        'inv-customer').value;
+    const chip = document.getElementById(
+        'inv-cust-chip');
+    if (!cid) {
+        chip.style.display = 'none';
+        invRows = [];
+        renderInvRows();
+        recalcTotals();
+        return;
+    }
+    const c = customers.find(
+        x => x.customer_id === cid);
+    if (c) {
+        document.getElementById(
+            'inv-cust-name').textContent =
+            `${c.first_name} ${c.last_name}`;
+        chip.style.display = 'block';
+    }
+    try {
+        const salesData = await api(
+            `/customers/${cid}/sales`);
+        if (salesData && salesData.length) {
+            invRows = salesData.map(s => ({
+                sale_id: s.sale_id,
+                description: s.description,
+                unit_price: parseFloat(
+                    s.unit_price || 0),
+                qty: parseInt(s.qty || 1),
+                amount: parseFloat(s.amount || 0),
+            }));
+            toast(`Loaded ${invRows.length} sales`);
+        } else {
+            invRows = [];
+        }
+    } catch (e) {
+        invRows = [];
+    }
+    renderInvRows();
+    recalcTotals();
+}''', "Code 9.10: Invoice Builder Customer Selection")
+
+    page_break(doc)
+
+    # ── 9.3 CSS ──
+    heading(doc, "Stylesheet (styles.css)", 2, "9.3")
+    para(doc, (
+        "The CSS stylesheet defines the complete dark theme with CSS "
+        "custom properties, responsive layout, and component styling. "
+        "Key sections are presented below."
+    ))
+
+    heading(doc, "CSS Custom Properties (Design Tokens)", 3, "9.3.1")
+    code_block(doc, ''':root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #334155;
+    --border: #334155;
+    --accent: #ec4899;
+    --accent2: #3b82f6;
+    --accent3: #f43f5e;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --radius: 12px;
+    --transition: 180ms ease;
+}
+
+body {
+    background: radial-gradient(
+        circle at top right,
+        #1e1b4b, var(--bg)
+    );
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+}''', "Code 9.11: CSS Custom Properties")
+
+    heading(doc, "Sidebar and KPI Card Styles", 3, "9.3.2")
+    code_block(doc, '''.sidebar {
+    width: 240px;
+    min-height: 100vh;
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+}
+
+.kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+}''', "Code 9.12: Sidebar and KPI Card Styles")
+
+    page_break(doc)
+
+    heading(doc, "Login Overlay Styles", 3, "9.3.3")
+    code_block(doc, '''.login-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    right: 0; bottom: 0;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 300ms ease;
+}
+.login-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+.login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px 34px;
+    width: 370px;
+    max-width: 90vw;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(
+        90deg, #fbbf24, #ec4899, #3b82f6
+    );
+}''', "Code 9.13: Login Overlay Glassmorphism Styles")
+
+    # ── 9.4 HTML ──
+    heading(doc, "HTML Structure (index.html)", 2, "9.4")
+    para(doc, (
+        "The HTML file defines the single-page application structure "
+        "with sidebar navigation, 7 content sections, login overlay, "
+        "and invoice preview modal. Key structural elements are shown."
+    ))
+
+    heading(doc, "Sidebar Navigation", 3, "9.4.1")
+    code_block(doc, '''<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">
+      Sales<span>DB</span>
+    </div>
+    <div class="logo-sub">Analytics</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active"
+         data-section="dashboard">
+      <span class="nav-icon">&#9638;</span>
+      <span>Dashboard</span>
+    </div>
+    <div class="nav-item"
+         data-section="sales"
+         data-protected="true">
+      <span class="nav-icon">&#9672;</span>
+      <span>Sales</span>
+      <span class="lock-icon"
+            id="lock-sales">&#128274;</span>
+    </div>
+    <!-- Customers, Products, Stocks,
+         Invoices, Reports similarly -->
+  </nav>
+  <div class="status-bar">
+    <span class="status-dot"></span>
+    <span>API Connected</span>
+  </div>
+</aside>''', "Code 9.14: Sidebar Navigation HTML")
+
+    heading(doc, "Dashboard KPI Cards", 3, "9.4.2")
+    code_block(doc, '''<section class="section active"
+         id="section-dashboard">
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value"
+           id="kpi-revenue">&#8212;</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Total Sales</div>
+      <div class="kpi-value"
+           id="kpi-sales">&#8212;</div>
+    </div>
+    <!-- 6 more KPI cards -->
+  </div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">
+        Revenue by Category
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chartCategory"></canvas>
+      </div>
+    </div>
+    <!-- 2 more chart cards -->
+  </div>
+</section>''', "Code 9.15: Dashboard KPI Cards HTML")
+
+    page_break(doc)
+
+
+# ═══════════════════════════════════════════
+#  REMAINING CHAPTERS (Existing content preserved)
+# ═══════════════════════════════════════════
+
+# NOTE: Chapters I, II, III, V (Design), VI (Implementation),
+# VII (Testing), VIII (Results) use the SAME content from
+# your existing PDF. I'm including the chapter stubs here.
+# You should copy the content from your existing document.
+
+def chapter_intro(doc):
+    """Chapter I - same as existing pages 9-12"""
+    chapter_title(doc, "I", "INTRODUCTION")
+    heading(doc, "INTRODUCTION", 2, "1.")
+    heading(doc, "Background and Motivation", 2, "1.1")
+    para(doc, (
+        "In the contemporary era of digital transformation, data-driven "
+        "decision-making has become the cornerstone of competitive "
+        "advantage in the retail sector. Small and medium-sized retail "
+        "enterprises generate substantial volumes of transactional data "
+        "daily, encompassing customer purchases, product inventory "
+        "movements, payment collections, and tax obligations. However, "
+        "the absence of integrated analytical systems means that this "
+        "data remains largely underutilised, leaving business owners "
+        "without the insights necessary to optimise pricing, manage "
+        "inventory, and forecast revenue [1]."
+    ))
+    para(doc, (
+        "The motivation for developing the Retail Sales Data Analysis "
+        "system emerges from this observable gap. Traditional approaches "
+        "to retail sales management in Indian SMEs typically involve a "
+        "combination of manual ledgers, Microsoft Excel spreadsheets, or "
+        "standalone billing software that operate in isolation. These "
+        "approaches are characterised by manual data entry errors, lack "
+        "of real-time inventory visibility, absence of analytical "
+        "reporting, and no automated invoice generation — all of which "
+        "compound to result in inefficient operations and missed business "
+        "opportunities [2]."
+    ))
+    para(doc, (
+        "Modern open-source web technologies have dramatically lowered "
+        "the cost and complexity of building integrated business "
+        "intelligence systems. The Python Flask framework provides a "
+        "lightweight yet powerful foundation for RESTful API development. "
+        "PostgreSQL offers enterprise-grade relational database "
+        "capabilities at zero licensing cost. HTML5, CSS3, and JavaScript "
+        "enable rich interactive frontend experiences without framework "
+        "complexity. Chart.js delivers professional-quality data "
+        "visualisations directly in the browser. The combination of these "
+        "technologies makes it feasible to build a production-quality "
+        "retail analytics system that can be deployed on any standard "
+        "machine with minimal setup overhead [3]."
+    ))
+    para(doc, (
+        "The SalesDB Analytics System — the implementation platform for "
+        "this project — was designed to demonstrate how a carefully "
+        "architected full-stack web application can transform raw sales "
+        "transactional data into actionable business intelligence. The "
+        "system integrates customer relationship management, product "
+        "inventory control, automated GST-compliant invoice generation, "
+        "and multi-dimensional analytics reporting into a single unified "
+        "dashboard interface, accessible through any modern web browser "
+        "at localhost:5000."
+    ))
+    para(doc, (
+        "The project also serves an academic purpose of demonstrating "
+        "the application of core computer science principles in a "
+        "real-world context: database normalisation theory in schema "
+        "design, REST architectural constraints in API design, "
+        "client-server architecture in system deployment, and software "
+        "engineering best practices in code organisation and error "
+        "handling."
+    ))
+
+    # 1.2 Problem Statement
+    heading(doc, "Problem Statement", 2, "1.2")
+    para(doc, (
+        "The specific problem addressed by this project can be stated "
+        "as follows: Small and medium-sized retail businesses in India "
+        "lack an affordable, integrated, and analytically capable sales "
+        "management system that can automate their complete sales "
+        "pipeline from customer registration through product sale, stock "
+        "management, invoice generation, and revenue reporting, within a "
+        "single web-accessible platform."
+    ))
+    para(doc, "This problem manifests through the following observable symptoms:")
+    bullet(doc, (
+        "Customer data is maintained separately from sales data, making "
+        "it impossible to quickly identify a customer's purchase history, "
+        "outstanding invoices, or total lifetime value [1]."
+    ))
+    bullet(doc, (
+        "Product stock levels are not automatically decremented when "
+        "sales are recorded, leading to situations where sales are "
+        "accepted for out-of-stock products."
+    ))
+    bullet(doc, (
+        "Invoice generation is performed manually using word processors "
+        "or printed templates, consuming significant administrative time "
+        "and introducing errors in GST calculation."
+    ))
+    bullet(doc, (
+        "Management has no real-time visibility into key performance "
+        "indicators such as total revenue, revenue by product category, "
+        "pending payment collections, or average order value."
+    ))
+    bullet(doc, (
+        "Generating filtered sales reports for specific time periods, "
+        "product categories, or geographic regions requires manual "
+        "extraction and manipulation of spreadsheet data [2]."
+    ))
+
+    # 1.3 Objectives
+    heading(doc, "Objectives of the Project", 2, "1.3")
+    objs = [
+        "To design a fully normalised (3NF) relational database schema "
+        "using PostgreSQL that integrates customer, product, sales, "
+        "invoice, and stock history data.",
+        "To develop a comprehensive RESTful API using Flask (Python) "
+        "with 20+ endpoints covering all business operations.",
+        "To build an interactive, dark-themed, responsive frontend "
+        "dashboard using HTML5, CSS3, and JavaScript with Chart.js.",
+        "To implement automated GST-inclusive (18%) invoice generation "
+        "with automatic and standalone Invoice Builder modes.",
+        "To develop PDF invoice download capability using ReportLab.",
+        "To implement a stock management module with real-time tracking, "
+        "restocking, and history logging.",
+        "To build filterable sales reports with CSV export capability.",
+        "To secure all write operations behind session-based admin "
+        "authentication with 30-minute automatic expiry.",
+    ]
+    for i, obj in enumerate(objs):
+        numbered(doc, i + 1, obj)
+
+    # 1.4 Scope
+    heading(doc, "Scope of the Project", 2, "1.4")
+    para(doc, "The system covers the following functional modules:")
+    modules = [
+        "Dashboard Module: 8 KPI metrics and 3 Chart.js visualisations.",
+        "Sales Module: Recording with auto-calculation and stock deduction.",
+        "Customer Management: CRUD with 7 fields and membership types.",
+        "Product Management: CRUD with pricing and stock quantities.",
+        "Stock Management: Real-time tracking with restock and history.",
+        "Invoice Module: Builder with auto-fill, GST, preview, PDF.",
+        "Reports Module: Filtered analytics with CSV export.",
+    ]
+    for m in modules:
+        bullet(doc, m)
+
+    para(doc, (
+        "Out of scope: multi-user roles, cloud deployment, mobile app, "
+        "barcode scanning, email delivery. These are future enhancements."
+    ))
+
+    # 1.5 Organisation
+    heading(doc, "Organisation of the Report", 2, "1.5")
+    para(doc, (
+        "This project report is organised into ten chapters. Chapter I "
+        "introduces the project. Chapter II presents the literature "
+        "review. Chapter III covers system analysis and requirements. "
+        "Chapter IV details the SDLC process using the Waterfall Model. "
+        "Chapter V presents system design. Chapter VI covers "
+        "implementation. Chapter VII documents testing. Chapter VIII "
+        "presents results and discussion. Chapter IX contains the "
+        "complete source code. Chapter X presents conclusion and future "
+        "work, followed by references."
+    ))
+
+    para(doc, "[Insert Figure 1.1: High-Level Block Diagram]", BODY,
+         italic=True, align=WD_ALIGN_PARAGRAPH.CENTER,
+         color=(150, 150, 150))
+
+    page_break(doc)
+
+
+def chapter_conclusion(doc):
+    """Chapter X - Conclusion and Future Work"""
+    chapter_title(doc, "X", "CONCLUSION AND FUTURE WORK")
+
+    heading(doc, "CONCLUSION AND FUTURE WORK", 2, "10.")
+
+    heading(doc, "Conclusion", 2, "10.1")
+    para(doc, (
+        "The Retail Sales Data Analysis system has been successfully "
+        "designed, implemented, tested, and evaluated as the major "
+        "project for the degree of Master in Computer Application at "
+        f"{COLLEGE}, Bhubaneswar. The system fulfils all 24 functional "
+        "requirements identified during the requirements analysis phase, "
+        "achieving 100% functional requirement coverage as verified "
+        "through the layered testing strategy documented in Chapter VII."
+    ))
+    para(doc, (
+        "The project demonstrates that a full-stack web application "
+        "built on the open-source technology stack of Flask + PostgreSQL "
+        "+ HTML/CSS/JavaScript + Chart.js + ReportLab can deliver "
+        "enterprise-grade retail sales analytics capabilities at zero "
+        "licensing cost. The system integrates customer relationship "
+        "management, product inventory control, automated invoice "
+        "generation, stock change tracking, and multi-dimensional "
+        "analytics reporting into a single, cohesive, browser-accessible "
+        "platform."
+    ))
+    para(doc, (
+        "The project followed the Waterfall Model SDLC methodology, "
+        "progressing through five sequential phases over 15 weeks: "
+        "Requirement Analysis (3 weeks), System Design (3 weeks), "
+        "Implementation (6 weeks), Testing (2 weeks), and Deployment "
+        "(1 week). All phase deliverables were completed on schedule."
+    ))
+    para(doc, (
+        "From the academic perspective, the project successfully applies "
+        "database normalisation (3NF), RESTful architecture, MVC "
+        "separation of concerns, ACID transaction compliance, and "
+        "event-driven programming in a real-world context."
+    ))
+    para(doc, (
+        "The system produces actionable business intelligence: "
+        "identifying Electronics as the dominant revenue category "
+        "(52.8%), flagging 62.5% of products as low or out of stock, "
+        "revealing pending invoice collections of $1,157.40, and "
+        "providing customer-level transaction history."
+    ))
+
+    heading(doc, "Limitations", 2, "10.2")
+    limitations = [
+        "Single-User Architecture with no role-based access control.",
+        "Local deployment only — no cloud or containerisation.",
+        "Single-page invoice PDF — no multi-page support.",
+        "No automated testing framework (pytest/Newman).",
+        "No email integration for invoice delivery.",
+        "Currency limited to USD notation.",
+        "No automated database backup mechanism.",
+    ]
+    for lim in limitations:
+        bullet(doc, lim)
+
+    heading(doc, "Future Scope", 2, "10.3")
+    enhancements = [
+        ("Role-Based Access Control",
+         "Implement users table with admin/manager/cashier/viewer roles."),
+        ("Cloud Deployment",
+         "Containerise with Docker, deploy to AWS/Heroku with Nginx + "
+         "Gunicorn and SSL encryption."),
+        ("Mobile-Responsive Enhancement",
+         "Full mobile support with CSS responsive breakpoints."),
+        ("Barcode/QR Scanning",
+         "Browser-based barcode scanning for product identification."),
+        ("Email Invoice Delivery",
+         "Flask-Mail or SendGrid integration for auto-emailing PDFs."),
+        ("Multi-Currency Support",
+         "INR/USD/EUR with Indian numbering system support."),
+        ("Advanced Analytics",
+         "Time-series forecasting, customer lifetime value, product "
+         "affinity analysis."),
+        ("Automated Backup",
+         "Scheduled pg_dump with cloud storage sync."),
+    ]
+    for i, (title, desc) in enumerate(enhancements):
+        numbered(doc, i + 1, f"{title}: {desc}")
+
+    page_break(doc)
+
+
+def references(doc):
+    heading(doc, "REFERENCES", 1)
+    blank(doc, 1)
+    refs = [
+        "Chaudhuri, S., Dayal, U., & Narasayya, V. (2011). An overview "
+        "of business intelligence technology. Communications of the ACM, "
+        "54(8), 88-98.",
+        "Xu, L. D., & Duan, L. (2019). Big data for cyber physical "
+        "systems in industry 4.0. Enterprise Information Systems, "
+        "13(2), 148-169.",
+        "Grinberg, M. (2018). Flask Web Development (2nd ed.). O'Reilly.",
+        "Fielding, R. T. (2000). Architectural Styles and the Design of "
+        "Network-based Software Architectures. UC Irvine.",
+        "Greenberg, P. (2009). CRM at the Speed of Light (4th ed.). "
+        "McGraw-Hill.",
+        "Garrett, J. J. (2005). Ajax: A New Approach to Web Applications.",
+        "Kiran, M. et al. (2015). Lambda architecture for big data "
+        "processing. IEEE Big Data Conference, 2785-2792.",
+        "Ramakrishnan, R., & Gehrke, J. (2003). Database Management "
+        "Systems (3rd ed.). McGraw-Hill.",
+        "Laudon, K. C. (2020). Management Information Systems (16th ed.). "
+        "Pearson.",
+        "Singh, A. & Malhotra, M. (2020). Comparative study of Python "
+        "web frameworks. IJCA, 175(12), 35-42.",
+        "Stonebraker, M. (2005). What goes around comes around. Readings "
+        "in Database Systems. MIT Press.",
+        "Pallets Projects. (2023). Flask Documentation (3.0.x). "
+        "https://flask.palletsprojects.com/",
+        "Di Gregorio, F. (2010). psycopg2 Documentation. "
+        "https://www.psycopg.org/docs/",
+        "ReportLab Inc. (2023). ReportLab User Guide. "
+        "https://www.reportlab.com/docs/",
+        "Chart.js Contributors. (2023). Chart.js Documentation v4.4.1. "
+        "https://www.chartjs.org/docs/",
+        "Lutz, M. (2013). Learning Python (5th ed.). O'Reilly.",
+        "Fowler, M. (2002). Patterns of Enterprise Application "
+        "Architecture. Addison-Wesley.",
+        "PostgreSQL Documentation. (2023). https://www.postgresql.org/docs/",
+        "Scambray, J. (2010). Hacking Exposed Web Applications (3rd ed.).",
+        "AWS Documentation. (2023). AWS Elastic Beanstalk Developer Guide.",
+        "Royce, W. W. (1970). Managing the Development of Large Software "
+        "Systems. IEEE WESCON, 1-9.",
+    ]
+    for i, ref in enumerate(refs):
+        p = doc.add_paragraph()
+        p.paragraph_format.space_after = Pt(6)
+        p.paragraph_format.hanging_indent = Cm(1)
+        run = p.add_run(f"[{i + 1}]  ")
+        sf(run, FONT, BODY, bold=True)
         run = p.add_run(ref)
-        run.font.size = Pt(10)
-        p.paragraph_format.space_after = Pt(8)
-
-    # ── Save ─────────────────────────────────────
-    filename = 'SalesDB_Project_Report.docx'
-    doc.save(filename)
-    print(f'\n  ✓ Report saved: {filename}')
-    print(f'  ✓ Total sections: 8 chapters + front matter + references')
-    print(f'  ✓ Diagrams saved in: {IMG_DIR}/')
-    print(f'  ✓ Open the .docx file in Microsoft Word\n')
-
-    return filename
+        sf(run, FONT, BODY)
 
 
-# ══════════════════════════════════════════════════
-#  MAIN
-# ══════════════════════════════════════════════════
+# ═══════════════════════════════════════════
+#  STUB FUNCTIONS FOR EXISTING CHAPTERS
+#  (Copy content from your existing PDF)
+# ═══════════════════════════════════════════
+
+def chapter_lit_review(doc):
+    """Chapter II - Copy from existing PDF pages 13-16"""
+    chapter_title(doc, "II", "LITERATURE REVIEW")
+    heading(doc, "LITERATURE REVIEW", 2, "2.")
+    heading(doc, "Overview of Web-Based Sales and Analytics Systems", 2, "2.1")
+    para(doc, "[Copy content from your existing Chapter II, Section 2.1 — approximately 2 pages of text about web-based sales systems evolution, three generations, etc.]")
+    heading(doc, "Related Work and Existing Systems", 2, "2.2")
+    para(doc, "[Copy the comparison table and analysis from Section 2.2]")
+    heading(doc, "Technologies Reviewed", 2, "2.3")
+    para(doc, "[Copy Flask, PostgreSQL, ReportLab, Chart.js reviews from Section 2.3]")
+    heading(doc, "Summary and Research Gap", 2, "2.4")
+    para(doc, "[Copy research gap summary from Section 2.4]")
+    page_break(doc)
+
+
+def chapter_sys_analysis(doc):
+    """Chapter III - Copy from existing PDF pages 17-22"""
+    chapter_title(doc, "III", "SYSTEM ANALYSIS AND REQUIREMENTS")
+    heading(doc, "SYSTEM ANALYSIS AND REQUIREMENTS", 2, "3.")
+    heading(doc, "Feasibility Study", 2, "3.1")
+    para(doc, "[Copy feasibility study from existing Chapter III]")
+    heading(doc, "Functional Requirements", 2, "3.2")
+    para(doc, "[Copy the FR table from existing document]")
+    heading(doc, "Non-Functional Requirements", 2, "3.3")
+    para(doc, "[Copy NFR table from existing document]")
+    heading(doc, "Use Case Descriptions", 2, "3.4")
+    para(doc, "[Copy use case diagrams and descriptions]")
+    page_break(doc)
+
+
+def chapter_design(doc):
+    """Chapter V (now) - Copy from existing PDF pages 23-29"""
+    chapter_title(doc, "V", "SYSTEM DESIGN")
+    heading(doc, "SYSTEM DESIGN", 2, "5.")
+    heading(doc, "System Architecture", 2, "5.1")
+    para(doc, "[Copy architecture content from existing Chapter IV]")
+    heading(doc, "Database Design — ER Diagram", 2, "5.2")
+    para(doc, "[Copy ER diagram and explanation]")
+    heading(doc, "Database Schema", 2, "5.3")
+    para(doc, "[Copy all 5 table schema tables]")
+    heading(doc, "Data Flow Diagrams", 2, "5.4")
+    para(doc, "[Copy DFD Level 0 and Level 1 diagrams and descriptions]")
+    heading(doc, "API Design", 2, "5.5")
+    para(doc, "[Copy API endpoints table]")
+    heading(doc, "User Interface Design", 2, "5.6")
+    para(doc, "[Copy UI design description]")
+    page_break(doc)
+
+
+def chapter_implementation(doc):
+    """Chapter VI - Copy from existing PDF pages 30-37"""
+    chapter_title(doc, "VI", "IMPLEMENTATION")
+    heading(doc, "IMPLEMENTATION", 2, "6.")
+    heading(doc, "Technology Stack", 2, "6.1")
+    para(doc, "[Copy tech stack table from existing Chapter V]")
+    heading(doc, "Backend Implementation (Flask)", 2, "6.2")
+    para(doc, "[Copy backend implementation details]")
+    heading(doc, "Database Implementation (PostgreSQL)", 2, "6.3")
+    para(doc, "[Copy database implementation details]")
+    heading(doc, "Frontend Implementation", 2, "6.4")
+    para(doc, "[Copy frontend implementation details + screenshots]")
+    heading(doc, "Invoice and PDF Generation", 2, "6.5")
+    para(doc, "[Copy invoice/PDF generation details]")
+    page_break(doc)
+
+
+def chapter_testing(doc):
+    """Chapter VII - Copy from existing PDF pages 38-41"""
+    chapter_title(doc, "VII", "TESTING")
+    heading(doc, "TESTING", 2, "7.")
+    heading(doc, "Testing Strategy", 2, "7.1")
+    para(doc, "[Copy testing strategy from existing Chapter VI]")
+    heading(doc, "Unit Testing", 2, "7.2")
+    para(doc, "[Copy unit test table]")
+    heading(doc, "Integration Testing", 2, "7.3")
+    para(doc, "[Copy integration test table]")
+    heading(doc, "User Acceptance Testing", 2, "7.4")
+    para(doc, "[Copy UAT results table]")
+    page_break(doc)
+
+
+def chapter_results(doc):
+    """Chapter VIII - Copy from existing PDF pages 42-44"""
+    chapter_title(doc, "VIII", "RESULTS AND DISCUSSION")
+    heading(doc, "RESULTS AND DISCUSSION", 2, "8.")
+    heading(doc, "Dashboard and KPI Results", 2, "8.1")
+    para(doc, "[Copy KPI results table and analysis]")
+    heading(doc, "Sales and Invoice Results", 2, "8.2")
+    para(doc, "[Copy sales records table and analysis]")
+    heading(doc, "Stock Management Results", 2, "8.3")
+    para(doc, "[Copy stock management analysis]")
+    heading(doc, "Reports Module Results", 2, "8.4")
+    para(doc, "[Copy reports analysis]")
+    page_break(doc)
+
+
+# ═══════════════════════════════════════════
+#  MAIN BUILD
+# ═══════════════════════════════════════════
+
+def build():
+    doc = Document()
+    style = doc.styles['Normal']
+    style.font.name = FONT
+    style.font.size = Pt(BODY)
+
+    # Front matter
+    cover_page(doc)
+    certificate(doc)
+    acknowledgement(doc)
+    declaration(doc)
+    abstract(doc)
+    table_of_contents(doc)
+
+    # Chapters
+    chapter_intro(doc)           # Ch I  (~4 pages)
+    chapter_lit_review(doc)      # Ch II (~4 pages) - COPY FROM PDF
+    chapter_sys_analysis(doc)    # Ch III (~6 pages) - COPY FROM PDF
+    chapter_sdlc(doc)            # Ch IV — NEW SDLC CHAPTER (~10 pages)
+    chapter_design(doc)          # Ch V  (~7 pages) - COPY FROM PDF
+    chapter_implementation(doc)  # Ch VI (~8 pages) - COPY FROM PDF
+    chapter_testing(doc)         # Ch VII (~4 pages) - COPY FROM PDF
+    chapter_results(doc)         # Ch VIII (~3 pages) - COPY FROM PDF
+    chapter_source_code(doc)     # Ch IX — NEW SOURCE CODE (~12 pages)
+    chapter_conclusion(doc)      # Ch X  (~3 pages)
+    references(doc)              # (~2 pages)
+
+    header_footer(doc)
+
+    fname = "Retail_Sales_Data_Analysis_Final.docx"
+    doc.save(fname)
+    return fname
+
 
 if __name__ == '__main__':
-    print('\n  ╔══════════════════════════════════════╗')
-    print('  ║  SalesDB — Report Generator          ║')
-    print('  ╚══════════════════════════════════════╝\n')
+    print('\n  ╔════════════════════════════════════════════╗')
+    print('  ║  Retail Sales Data Analysis — Final Report  ║')
+    print('  ║  Target: 75-85 pages                        ║')
+    print('  ║  Font: Arial (14/12/11 pt)                  ║')
+    print('  ╚════════════════════════════════════════════╝\n')
 
-    print('  → Generating diagrams...')
-    arch_img = create_system_architecture()
-    print('    ✓ System Architecture')
+    fname = build()
 
-    er_img = create_er_diagram()
-    print('    ✓ ER Diagram')
+    print(f'  ✅ Saved: {fname}')
+    print('  ✅ NEW additions:')
+    print('     • Chapter IV: SDLC — Waterfall Model (~10 pages)')
+    print('     • Chapter IX: Source Code (~12 pages)')
+    print('     • Updated Table of Contents')
+    print('     • Updated Abstract with SDLC mention')
+    print('  ✅ Chapters with [Copy...] placeholders:')
+    print('     Replace with content from your existing PDF\n')
 
-    dfd0_img = create_dfd_level0()
-    print('    ✓ DFD Level 0')
-
-    dfd1_img = create_dfd_level1()
-    print('    ✓ DFD Level 1')
-
-    flow_img = create_flowchart()
-    print('    ✓ Program Flowchart')
-
-    comp_img = create_component_diagram()
-    print('    ✓ Component Diagram')
-
-    sdlc_img = create_sdlc_diagram()
-    print('    ✓ SDLC Model')
-
-    tech_stack_img = create_tech_stack()
-    print('    ✓ Technology Stack')
-
-    seq_img = create_sequence_diagram()
-    print('    ✓ Sequence Diagram')
-
-    deploy_img = create_deployment_diagram()
-    print('    ✓ Deployment Diagram')
-
-    dashboard_img = create_sample_dashboard()
-    print('    ✓ Sample Dashboard Charts')
-
-    crud_img = create_crud_flowchart()
-    print('    ✓ CRUD Flowchart')
-
-    print('\n  → Building Word document...')
-    build_report()
+    chapters = [
+        'Cover Page + Certificate + Declaration + Acknowledgement (4 pg)',
+        'Abstract (1 pg)',
+        'Table of Contents + Lists (3 pg)',
+        'Ch I   — Introduction (4 pg)',
+        'Ch II  — Literature Review (4 pg) [COPY FROM PDF]',
+        'Ch III — System Analysis (6 pg) [COPY FROM PDF]',
+        'Ch IV  — SDLC Waterfall Model (10 pg) ★NEW',
+        'Ch V   — System Design (7 pg) [COPY FROM PDF]',
+        'Ch VI  — Implementation (8 pg) [COPY FROM PDF]',
+        'Ch VII — Testing (4 pg) [COPY FROM PDF]',
+        'Ch VIII— Results (3 pg) [COPY FROM PDF]',
+        'Ch IX  — Source Code (12 pg) ★NEW',
+        'Ch X   — Conclusion & Future (3 pg)',
+        'References (2 pg)',
+    ]
+    total = 4+1+3+4+4+6+10+7+8+4+3+12+3+2
+    print(f'  Estimated pages: ~{total}')
+    print('  Chapters:')
+    for c in chapters:
+        print(f'    ✓ {c}')
+    print()
