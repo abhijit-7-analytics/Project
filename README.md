@@ -36,11 +36,19 @@ pip install -r requirements.txt
 ```
 
 ### Configure credentials (optional — defaults match the original script)
+### For Windows cmd
+``` bash
+set DB_NAME=sales_db
+set DB_USER=postgres
+set DB_PASSWORD=Barsha@1234#
+set DB_HOST=localhost
+```
 
+### For LInux Bassed
 ```bash
 export DB_NAME=sales_db
 export DB_USER=postgres
-export DB_PASSWORD=Abhi@1234
+export DB_PASSWORD=Abhi@1234#
 export DB_HOST=localhost
 ```
 
