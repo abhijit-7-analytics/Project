@@ -63,7 +63,7 @@ API runs at **http://localhost:5000**
 ```bash
 curl -X POST http://localhost:5000/api/setup
 ```
-###OR
+### OR
 
 ```bash
 Invoke-WebRequest -Uri http://localhost:5000/api/setup -Method POST
